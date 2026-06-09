@@ -17,7 +17,7 @@ export function Navbar({ currentView, onNavigate }: NavbarProps) {
   ];
 
   return (
-    <nav id="bottom-navbar" className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-3xl border-t border-gray-100 flex items-center px-4 z-50 w-full">
+    <nav id="bottom-navbar" className="fixed bottom-0 left-0 right-0 h-20 bg-white/45 backdrop-blur-xl border-t border-white/60 flex items-center px-4 z-50 w-full shadow-2xl saturate-150">
       <div className="flex justify-around w-full p-1">
         {items.map((item) => (
           <button
@@ -38,10 +38,10 @@ export function Navbar({ currentView, onNavigate }: NavbarProps) {
                 whileTap={{ scale: 0.95 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
                 className={`w-12 h-12 flex items-center justify-center rounded-3xl bg-gradient-to-br ${
-                  item.id === 'Helper' ? 'from-blue-400 to-blue-600 shadow-blue-200' :
-                  item.id === 'GiGs' ? 'from-emerald-400 to-emerald-600 shadow-emerald-200' :
-                  item.id === 'Chat' ? 'from-purple-400 to-purple-600 shadow-purple-200' :
-                  'from-amber-400 to-orange-500 shadow-amber-200'
+                  item.id === 'Helper' ? 'from-blue-400 to-blue-600 shadow-blue-200/80' :
+                  item.id === 'GiGs' ? 'from-emerald-400 to-emerald-600 shadow-emerald-200/80' :
+                  item.id === 'Chat' ? 'from-purple-400 to-purple-600 shadow-purple-200/80' :
+                  'from-amber-400 to-orange-500 shadow-amber-200/80'
                 } shadow-lg transition-all duration-300 text-white`}
               >
                 <item.icon className="w-6 h-6" strokeWidth={2.5} />
@@ -54,7 +54,7 @@ export function Navbar({ currentView, onNavigate }: NavbarProps) {
             {currentView === item.id && (
               <motion.div
                 layoutId="nav-pill"
-                className="absolute inset-0 bg-blue-50/80 rounded-2xl -z-0"
+                className="absolute inset-x-2 inset-y-1 bg-blue-500/5 backdrop-blur-sm border border-blue-500/10 rounded-2xl -z-0"
                 transition={{ type: "spring", bounce: 0.15, duration: 0.6 }}
               />
             )}

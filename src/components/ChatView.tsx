@@ -1,27 +1,36 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Users, X, Phone, Check, ArrowLeft, Smile, CheckCheck, Plus, Mic, Trash2 } from 'lucide-react';
+import { Send, User, Users, X, Phone, Check, ArrowLeft, Smile, CheckCheck, Plus, Mic, Trash2, ShieldAlert, Sparkles, CheckCircle, Navigation } from 'lucide-react';
 import { ChatMessage } from '@/src/types';
 
 const EMOJIS = ['👍', '❤️', '😂', '🔥', '🎉', '😢', '😍', '🤔', '🙏', '💯'];
 
 const MOCK_CONTACTS = [
-  { id: 1, name: 'Alex Johnson', phone: '+1 (555) 123-4567', isUsingApp: true, avatar: 'https://i.pravatar.cc/150?u=1' },
-  { id: 2, name: 'Maria Garcia', phone: '+1 (555) 987-6543', isUsingApp: true, avatar: 'https://i.pravatar.cc/150?u=2' },
-  { id: 3, name: 'James Smith', phone: '+1 (555) 456-7890', isUsingApp: true, avatar: 'https://i.pravatar.cc/150?u=3' },
-  { id: 4, name: 'Linda Martinez', phone: '+1 (555) 234-5678', isUsingApp: false, avatar: 'https://i.pravatar.cc/150?u=4' },
-  { id: 5, name: 'Robert Wilson', phone: '+1 (555) 876-5432', isUsingApp: true, avatar: 'https://i.pravatar.cc/150?u=5' },
-  { id: 6, name: 'Emma Brown', phone: '+1 (555) 345-6789', isUsingApp: false, avatar: 'https://i.pravatar.cc/150?u=6' },
+  { id: 100, name: 'Cwallet Assistant', phone: 'AI Co-Pilot', isUsingApp: true, avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&q=80', isAI: true },
+  { id: 1, name: 'Alex Johnson', phone: '+27 (0) 72 123 4567', isUsingApp: true, avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100' },
+  { id: 2, name: 'Maria Garcia', phone: '+27 (0) 73 987 6543', isUsingApp: true, avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100' },
+  { id: 3, name: 'James Smith', phone: '+27 (0) 81 456 7890', isUsingApp: true, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100' },
+  { id: 4, name: 'Linda Martinez', phone: '+27 (0) 71 234 5678', isUsingApp: false, avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100' },
 ];
 
-export function ChatView() {
-  const [activeContactId, setActiveContactId] = useState<number>(MOCK_CONTACTS[0].id);
-  const [chatHistories, setChatHistories] = useState<Record<number, ChatMessage[]>>({});
+interface ChatViewProps {
+  isNavbarVisible: boolean;
+  setIsNavbarVisible: (visible: boolean) => void;
+}
+
+export function ChatView({ isNavbarVisible, setIsNavbarVisible }: ChatViewProps) {
+  const [activeContactId, setActiveContactId] = useState<number>(100); // Default to Gemini Assistant
+  const [chatHistories, setChatHistories] = useState<Record<number, ChatMessage[]>>({
+    100: [
+      { role: 'model', content: 'Hello! I am your AI Cwallet Assistant. How can I help you today? I can guide you through securing top-ups, finding trust-worthy helpers, preparing your Matric resume certifications, or managing your digital ledger profits.', timestamp: Date.now() }
+    ]
+  });
   const [input, setInput] = useState('');
   const [showContacts, setShowContacts] = useState(false);
   const [invited, setInvited] = useState<Record<number, boolean>>({});
   const [showEmojis, setShowEmojis] = useState(false);
   const [attachment, setAttachment] = useState<{ url: string, type: 'image' | 'video' | 'audio' } | null>(null);
   const [fullScreenMedia, setFullScreenMedia] = useState<{ url: string, type: 'image' | 'video' } | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isRecording, setIsRecording] = useState(false);
@@ -30,8 +39,18 @@ export function ChatView() {
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
   const activeMessages = chatHistories[activeContactId] || [];
   const activeContact = MOCK_CONTACTS.find(c => c.id === activeContactId);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [activeContactId, activeMessages.length, isAiLoading]);
 
   useEffect(() => {
     return () => {
@@ -107,40 +126,87 @@ export function ChatView() {
     setAttachment({ url, type });
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim() && !attachment) return;
+
+    const userMessageContent = input;
+    const isTargetBot = activeContact?.isAI;
 
     const newMsg: ChatMessage = { 
       role: 'user', 
-      content: input, 
+      content: userMessageContent, 
       timestamp: Date.now(), 
       status: 'sent',
       mediaUrl: attachment?.url,
       mediaType: attachment?.type
     };
+
     setChatHistories(prev => ({
       ...prev,
       [activeContactId]: [...(prev[activeContactId] || []), newMsg]
     }));
+
     setInput('');
     setAttachment(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
 
-    // Simulate reply
-    setTimeout(() => {
-      setChatHistories(prev => {
-        const history = prev[activeContactId] || [];
-        const updatedHistory = history.map(m => m.role === 'user' ? { ...m, status: 'read' as const } : m);
-        return {
+    if (isTargetBot) {
+      setIsAiLoading(true);
+      try {
+        const res = await fetch('/api/helper', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ message: userMessageContent })
+        });
+        
+        const data = await res.json();
+        const replyText = data.text || "Sorry, I spent a moment looking at my systems but failed to fetch. Please verify that your GEMINI_API_KEY environment variable is configured in the Settings.";
+        
+        setChatHistories(prev => ({
           ...prev,
-          [activeContactId]: [...updatedHistory, {
-            role: 'model',
-            content: `Hi, this is a simulated reply from ${activeContact?.name?.split(' ')[0]}. I got your message!`,
-            timestamp: Date.now()
-          }]
-        };
-      });
-    }, 1000);
+          100: [
+            ...(prev[100] || []).map(m => m.role === 'user' ? { ...m, status: 'read' as const } : m),
+            {
+              role: 'model',
+              content: replyText,
+              timestamp: Date.now()
+            }
+          ]
+        }));
+      } catch (err: any) {
+        setChatHistories(prev => ({
+          ...prev,
+          100: [
+            ...(prev[100] || []),
+            {
+              role: 'model',
+              content: "I couldn't reach my server. Please make sure that standard dependencies are installed and double-check your API configurations.",
+              timestamp: Date.now()
+            }
+          ]
+        }));
+      } finally {
+        setIsAiLoading(false);
+      }
+    } else {
+      // Simulate slow mock replies for normal users
+      setTimeout(() => {
+        setChatHistories(prev => {
+          const history = prev[activeContactId] || [];
+          const updatedHistory = history.map(m => m.role === 'user' ? { ...m, status: 'read' as const } : m);
+          return {
+            ...prev,
+            [activeContactId]: [...updatedHistory, {
+              role: 'model',
+              content: `Hi there, this is a friendly response from ${activeContact?.name?.split(' ')[0]}. Got your message! Let me review the details on our dashboard.`,
+              timestamp: Date.now()
+            }]
+          };
+        });
+      }, 1000);
+    }
   };
 
   const handleContactClick = (contact: typeof MOCK_CONTACTS[0]) => {
@@ -160,115 +226,141 @@ export function ChatView() {
   const appUsers = MOCK_CONTACTS.filter(c => c.isUsingApp);
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 pt-4 relative">
-      <div className="flex justify-between items-center mb-4 px-4">
-        <div className="flex items-center gap-2">
-          <img src={activeContact?.avatar} alt={activeContact?.name} className="w-10 h-10 rounded-full object-cover border border-gray-200" />
-          <div className="font-semibold text-gray-800">
-            {activeContact?.name}
+    <div className="flex flex-col h-full bg-slate-50 relative overflow-hidden">
+      {/* Upper Chat bar panel */}
+      <div className="flex justify-between items-center px-6 py-3 border-b border-rose-100/10 bg-white z-30 flex-shrink-0 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <img src={activeContact?.avatar} alt={activeContact?.name} className="w-11 h-11 rounded-2xl object-cover border border-slate-200" />
+            {activeContact?.isAI ? (
+              <span className="absolute bottom-0 right-0 p-0.5 bg-blue-600 rounded-lg text-[9px] text-white">
+                <Sparkles size={8} />
+              </span>
+            ) : (
+              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
+            )}
+          </div>
+          <div>
+            <div className="font-bold text-slate-900 text-sm flex items-center gap-1.5 leading-none">
+              {activeContact?.name}
+              {activeContact?.isAI && <span className="text-[9px] bg-blue-50 text-blue-600 font-extrabold px-1.5 py-0.5 rounded-lg border border-blue-100">AI</span>}
+            </div>
+            <span className="text-[10px] text-slate-400 font-semibold block mt-1">{activeContact?.phone}</span>
           </div>
         </div>
-        <button 
-          onClick={() => setShowContacts(true)}
-          className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm text-blue-600 font-medium hover:bg-blue-50 border border-blue-100 transition-colors"
-        >
-          <Users size={18} />
-          <span>Contacts</span>
-        </button>
+        
+        <div className="flex items-center gap-2">
+          {!isNavbarVisible && (
+            <button
+              onClick={() => setIsNavbarVisible(true)}
+              className="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3.5 py-2.5 rounded-xl text-xs font-black border border-blue-100 transition-colors shadow-sm"
+              title="Restore main bottom menu"
+            >
+              <Navigation size={13} className="rotate-90 text-blue-500 fill-blue-500" />
+              <span>Show Menu</span>
+            </button>
+          )}
+
+          <button 
+            onClick={() => setShowContacts(true)}
+            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 px-4 py-2.5 rounded-xl text-slate-700 text-xs font-black transition-colors shadow-sm"
+          >
+            <Users size={14} />
+            <span>Contacts List</span>
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-4 no-scrollbar px-4 pb-20">
-        {activeMessages.length === 0 && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-500 h-full mt-10">
-            <img src={activeContact?.avatar} alt={activeContact?.name} className="w-20 h-20 rounded-full mb-4 opacity-50 grayscale" />
-            <p className="text-lg font-medium text-gray-700">Say hi to {activeContact?.name}</p>
-            <p className="text-sm">Send a message to start the conversation.</p>
-          </div>
-        )}
+      {/* Message history grid */}
+      <div className="flex-1 overflow-y-auto space-y-4 px-6 py-4 no-scrollbar">
         {activeMessages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] p-4 rounded-2xl flex gap-3 ${
-              msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-none'
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
+            <div className={`max-w-[78%] p-3.5 rounded-2xl flex gap-3 ${
+              msg.role === 'user' 
+                ? 'bg-blue-600 text-white rounded-br-none shadow-md shadow-blue-600/10' 
+                : 'bg-white text-slate-800 shadow-sm border border-slate-150 rounded-bl-none'
             }`}>
               {msg.role === 'model' && (
-                  <img src={activeContact?.avatar} alt="" className="w-6 h-6 rounded-full mt-0.5 object-cover" />
+                <img src={activeContact?.avatar} alt="" className="w-6 h-6 rounded-lg mt-0.5 object-cover" />
               )}
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1">
                 {msg.mediaUrl && (
                   <div className="w-full max-w-sm">
                     {msg.mediaType === 'video' ? (
-                      <div className="relative group cursor-pointer" onClick={() => setFullScreenMedia({ url: msg.mediaUrl!, type: 'video' })}>
-                        <video src={msg.mediaUrl} className="rounded-xl w-full max-h-60 object-cover bg-black" />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
-                          <div className="bg-white/90 rounded-full w-12 h-12 flex items-center justify-center pl-1 shadow-lg">
-                            <div className="w-0 h-0 border-t-8 border-t-transparent border-l-[12px] border-l-blue-600 border-b-8 border-b-transparent" />
-                          </div>
-                        </div>
-                      </div>
+                      <video src={msg.mediaUrl} className="rounded-xl w-full max-h-48 object-cover bg-black" controls />
                     ) : msg.mediaType === 'audio' ? (
-                      <audio src={msg.mediaUrl} controls className={`w-full min-w-[250px] sm:min-w-[300px] h-12 rounded-full ${msg.role === 'user' ? 'opacity-90 grayscale-[0.2]' : ''}`} />
+                      <audio src={msg.mediaUrl} controls className="w-full min-w-[200px]" />
                     ) : (
-                      <img 
-                        src={msg.mediaUrl} 
-                        alt="attachment" 
-                        onClick={() => setFullScreenMedia({ url: msg.mediaUrl!, type: 'image' })}
-                        className="rounded-xl w-full max-h-60 object-cover cursor-pointer hover:opacity-90 transition-opacity" 
-                      />
+                      <img src={msg.mediaUrl} alt="attachment" className="rounded-xl w-full max-h-48 object-cover cursor-pointer" onClick={() => setFullScreenMedia({ url: msg.mediaUrl!, type: 'image' })} />
                     )}
                   </div>
                 )}
-                {msg.content && <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</div>}
+                <div className="text-xs font-semibold leading-relaxed whitespace-pre-wrap">{msg.content}</div>
                 {msg.role === 'user' && msg.status && (
-                  <div className="flex justify-end mt-1 items-center gap-1">
-                    <span className="text-[10px] text-blue-200 uppercase tracking-widest">{msg.status}</span>
-                    {msg.status === 'read' ? <CheckCheck size={12} className="text-white" /> : <Check size={12} className="text-blue-200" />}
+                  <div className="flex justify-end items-center gap-1 mt-1 text-[8px] text-blue-200">
+                    <span className="uppercase tracking-widest">{msg.status}</span>
+                    {msg.status === 'read' ? <CheckCheck size={10} className="text-white" /> : <Check size={10} className="text-blue-200" />}
                   </div>
                 )}
               </div>
             </div>
           </div>
         ))}
-        <div className="h-32 w-full flex-shrink-0" />
+
+        {/* AI Processing Bubble */}
+        {isAiLoading && (
+          <div className="flex justify-start animate-pulse">
+            <div className="bg-white text-slate-800 p-3.5 rounded-2xl border border-slate-150 rounded-bl-none flex items-center gap-3">
+              <img src={activeContact?.avatar} alt="" className="w-6 h-6 rounded-lg object-cover text-blue-500 animate-spin" />
+              <span className="text-xs font-bold text-slate-500">Cwallet Artificial Intelligence typing...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Anchor for auto-scrolling */}
+        <div ref={messagesEndRef} />
       </div>
       
-      <div className="fixed bottom-20 left-0 right-0 z-40 flex flex-col shadow-[0_-4px_15px_-5px_rgba(0,0,0,0.05)]">
+      {/* Dynamic Bottom bar input suite */}
+      <div className="flex flex-col bg-white border-t border-slate-100 flex-shrink-0 shadow-lg z-40">
         {attachment && (
-          <div className="bg-white border-t border-gray-100 p-3 flex gap-2 overflow-x-auto w-full">
+          <div className="bg-white border-t border-slate-100 p-3 flex gap-2 overflow-x-auto w-full">
             <div className="relative inline-block shrink-0">
               {attachment.type === 'video' ? (
-                <video src={attachment.url} className="h-24 w-auto rounded-lg object-cover bg-black" controls />
+                <video src={attachment.url} className="h-20 w-auto rounded-xl object-cover bg-black" controls />
               ) : attachment.type === 'audio' ? (
-                <div className="h-12 flex items-center px-2 bg-gray-50 rounded-lg">
-                  <audio src={attachment.url} controls className="h-10" />
+                <div className="h-10 flex items-center px-2 bg-slate-50 rounded-xl">
+                  <audio src={attachment.url} controls className="h-8" />
                 </div>
               ) : (
-                <img src={attachment.url} className="h-24 w-auto rounded-lg object-cover" />
+                <img src={attachment.url} className="h-20 w-auto rounded-xl object-cover border border-slate-100" />
               )}
               <button 
                 onClick={() => setAttachment(null)}
-                className="absolute -top-2 -right-2 bg-gray-800 text-white rounded-full shadow-md w-6 h-6 flex items-center justify-center hover:bg-gray-900 z-10"
+                className="absolute -top-1.5 -right-1.5 bg-slate-900 border border-white text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-black"
               >
-                <X size={14} />
+                <X size={10} />
               </button>
             </div>
           </div>
         )}
 
-        <div className="bg-white p-3 border-t border-gray-200">
-          <div className="bg-gray-100 rounded-full flex items-center p-1 pl-4 relative">
+        {/* Input keys */}
+        <div className="bg-white p-3 border-t border-slate-100">
+          <div className="bg-slate-50 rounded-2xl flex items-center p-1.5 pl-4 relative border border-slate-150">
             {!isRecording && (
               <>
                 <button 
                   onClick={() => setShowEmojis(!showEmojis)} 
-                  className={`mr-2 transition-colors ${showEmojis ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={`mr-2.5 transition-colors ${showEmojis ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                 >
-                  <Smile size={24} />
+                  <Smile size={20} />
                 </button>
                 <button 
                   onClick={() => fileInputRef.current?.click()} 
-                  className="mr-2 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="mr-2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
-                  <Plus size={24} />
+                  <Plus size={20} />
                 </button>
                 <input 
                   type="file" 
@@ -279,12 +371,12 @@ export function ChatView() {
                 />
                 
                 {showEmojis && (
-                  <div className="absolute bottom-14 left-0 bg-white border border-gray-200 shadow-xl rounded-2xl p-3 grid grid-cols-5 gap-1 z-50 animate-in fade-in slide-in-from-bottom-2">
+                  <div className="absolute bottom-16 left-0 bg-white border border-slate-100 shadow-2xl rounded-2xl p-3 grid grid-cols-5 gap-1.5 z-50 animate-in fade-in slide-in-from-bottom-2">
                     {EMOJIS.map(emoji => (
                       <button 
                         key={emoji} 
                         onClick={() => handleEmojiClick(emoji)}
-                        className="text-2xl hover:bg-gray-100 w-10 h-10 flex items-center justify-center rounded-xl transition-all hover:scale-110 active:scale-95"
+                        className="text-xl hover:bg-slate-50 w-9 h-9 flex items-center justify-center rounded-lg transition-all active:scale-95"
                       >
                         {emoji}
                       </button>
@@ -295,13 +387,13 @@ export function ChatView() {
             )}
 
             {isRecording ? (
-              <div className="flex-1 flex items-center justify-between px-2 h-10">
-                <div className="flex items-center gap-3">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-[pulse_1s_ease-in-out_infinite]" />
-                  <span className="text-red-500 font-medium text-sm tabular-nums">{formatTime(recordingTime)}</span>
+              <div className="flex-1 flex items-center justify-between px-2 h-9">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+                  <span className="text-red-650 font-bold text-xs tabular-nums">{formatTime(recordingTime)}</span>
                 </div>
-                <button onClick={cancelRecording} className="text-gray-400 hover:text-gray-600 transition-colors px-2">
-                  <Trash2 size={20} />
+                <button onClick={cancelRecording} className="text-slate-400 hover:text-slate-600 transition-colors px-2">
+                  <Trash2 size={16} />
                 </button>
               </div>
             ) : (
@@ -310,32 +402,33 @@ export function ChatView() {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder={`Message ${activeContact?.name?.split(' ')[0]}...`}
-                className="flex-1 bg-transparent border-none focus:outline-none py-2 w-0 block"
+                onFocus={() => setIsNavbarVisible(false)}
+                placeholder={`Type message or task details...`}
+                className="flex-1 bg-transparent border-none focus:outline-none py-1.5 text-xs font-semibold text-slate-800"
               />
             )}
 
             {!input.trim() && !attachment && !isRecording ? (
               <button 
                 onClick={startRecording} 
-                className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white hover:bg-blue-700 ml-2 shrink-0 transition-all hover:scale-105 active:scale-95"
+                className="w-9 h-9 bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm"
               >
-                <Mic size={18} />
+                <Mic size={16} />
               </button>
             ) : isRecording ? (
               <button 
                 onClick={stopRecording} 
-                className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white hover:bg-green-600 ml-2 shrink-0 transition-all hover:scale-105 active:scale-95"
+                className="w-9 h-9 bg-emerald-600 hover:bg-emerald-750 rounded-xl flex items-center justify-center text-white shrink-0"
               >
-                <Check size={18} />
+                <Check size={16} />
               </button>
             ) : (
               <button 
                 onClick={handleSend} 
-                className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white hover:bg-blue-700 disabled:opacity-50 ml-2 shrink-0 transition-all hover:scale-105 active:scale-95" 
                 disabled={!input.trim() && !attachment}
+                className="w-9 h-9 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-all"
               >
-                <Send size={18} />
+                <Send size={16} />
               </button>
             )}
           </div>
@@ -346,79 +439,52 @@ export function ChatView() {
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur flex items-center justify-center p-4">
           <button 
             onClick={() => setFullScreenMedia(null)}
-            className="absolute top-6 right-6 text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition-all z-50"
+            className="absolute top-6 right-6 text-white bg-white/10 p-2 rounded-full hover:bg-white/20 z-50"
           >
-            <X size={32} />
+            <X size={24} />
           </button>
-          
-          {fullScreenMedia.type === 'video' ? (
-            <video 
-              src={fullScreenMedia.url} 
-              autoPlay 
-              controls 
-              className="max-w-full max-h-[90vh] object-contain rounded-lg animate-in zoom-in-95 duration-200" 
-            />
-          ) : (
-            <img 
-              src={fullScreenMedia.url} 
-              alt="fullscreen" 
-              className="max-w-full max-h-[90vh] object-contain rounded-lg animate-in zoom-in-95 duration-200" 
-            />
-          )}
+          <img src={fullScreenMedia.url} className="max-w-full max-h-[85vh] object-contain rounded-2xl" alt="" />
         </div>
       )}
 
+      {/* Dynamic Slide-in Contacts panel */}
       {showContacts && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
-          <div className="bg-white w-full sm:max-w-md h-[80vh] sm:h-auto sm:max-h-[80vh] sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:fade-in duration-300">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full sm:max-w-md h-[80vh] sm:h-auto sm:max-h-[80vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300">
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
               <div>
-                <h2 className="text-xl font-bold text-gray-800">Your Contacts</h2>
-                <p className="text-sm text-gray-500">{appUsers.length} using App</p>
+                <h2 className="text-lg font-black text-slate-900">Platform Contacts</h2>
+                <p className="text-xs text-slate-400 font-bold uppercase">{appUsers.length} online helpers</p>
               </div>
               <button 
                 onClick={() => setShowContacts(false)}
-                className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+                className="w-9 h-9 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500"
               >
-                <X size={20} />
+                <X size={16} />
               </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
               {MOCK_CONTACTS.map(contact => (
                 <div 
                   key={contact.id} 
                   onClick={() => handleContactClick(contact)}
-                  className={`bg-white p-3 rounded-2xl border flex items-center gap-4 transition-all cursor-pointer ${
-                    activeContactId === contact.id ? 'border-blue-500 ring-1 ring-blue-500 shadow-md' : 'border-gray-100 hover:border-blue-200 hover:shadow-sm'
+                  className={`bg-white p-3 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer ${
+                    activeContactId === contact.id ? 'border-blue-500 ring-1 ring-blue-500 shadow-sm' : 'border-slate-100 hover:border-slate-250'
                   }`}
                 >
-                  <div className="relative">
-                    <img src={contact.avatar} alt={contact.name} className="w-12 h-12 rounded-full object-cover border border-gray-200" />
-                    {contact.isUsingApp && (
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className={`font-semibold ${activeContactId === contact.id ? 'text-blue-700' : 'text-gray-800'}`}>{contact.name}</h3>
-                    <div className="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
-                      <Phone size={12} />
-                      <span>{contact.phone}</span>
-                    </div>
+                  <img src={contact.avatar} alt={contact.name} className="w-10 h-10 rounded-xl object-cover border border-slate-150" />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-slate-900 text-xs truncate flex items-center gap-1.5">{contact.name} {contact.isAI && <Sparkles size={12} className="text-blue-500" />}</h3>
+                    <p className="text-[10px] text-slate-400 font-semibold block mt-1">{contact.phone}</p>
                   </div>
                   <div>
                     {contact.isUsingApp ? (
-                      <span className="text-xs font-bold bg-blue-50 text-blue-600 px-3 py-1 rounded-full border border-blue-100">
-                        Chat
-                      </span>
+                      <span className="text-[10px] font-black bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg border border-blue-100 uppercase tracking-widest">Chat</span>
                     ) : invited[contact.id] ? (
-                      <span className="text-xs font-medium bg-green-50 text-green-600 px-3 py-1 rounded-full border border-green-100 flex items-center gap-1">
-                        <Check size={12} /> Invited
-                      </span>
+                      <span className="text-[10px] font-bold bg-green-50 text-green-600 px-3 py-1.5 rounded-lg border border-green-100 uppercase">Invited</span>
                     ) : (
-                      <span className="text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 px-3 py-1 rounded-full border border-gray-200">
-                        Invite
-                      </span>
+                      <span className="text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-200 uppercase">Invite</span>
                     )}
                   </div>
                 </div>
