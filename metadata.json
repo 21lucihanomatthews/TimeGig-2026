@@ -1,0 +1,9 @@
+{
+  "name": "GigHelper Wallet",
+  "description": "A centralized hub for AI assistance, gig management, and digital wallet tracking.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
