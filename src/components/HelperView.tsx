@@ -133,6 +133,7 @@ export function HelperView({ profile }: HelperViewProps) {
       id: helperId,
       name: `${profile.name} ${profile.surname || ''}`.trim(),
       profilePic: profile.facePictureUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+      faceVideoUrl: profile.faceVideoUrl,
       bio: bio.trim(),
       contact: profile.email,
       role: role,
@@ -196,23 +197,20 @@ export function HelperView({ profile }: HelperViewProps) {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50 pb-24">
-      {/* Header Panel */}
-      <div className="bg-white px-5 py-3 border-b border-slate-100 shadow-sm sticky top-0 z-30 backdrop-blur-md bg-white/95">
-        <div className="flex justify-between items-center mb-2.5">
-          <div>
-            <span className="text-[10px] font-extrabold tracking-wider text-blue-600/85 uppercase">GIGHELP TEAM</span>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">
-              Available Helpers
-            </h1>
-          </div>
-          
-          <div className="flex items-center gap-2">
+        {/* Search Header Banner */}
+        <div className="bg-white px-5 py-3 border-b border-slate-100 shadow-sm sticky top-0 z-30 backdrop-blur-md bg-white/95 flex-shrink-0">
+          <div className="flex justify-between items-center gap-4 mb-2.5">
+            <div>
+              <span className="text-[10px] font-extrabold tracking-wider text-blue-600/85 uppercase">GIGHELP TEAM</span>
+              <h1 className="text-xl font-black text-slate-900 tracking-tight">Available Helpers</h1>
+            </div>
+            
             <button
               onClick={openBecomeHelperModal}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 shadow-sm cursor-pointer ${
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer ${
                 isAlreadyHelper 
-                  ? 'bg-amber-500 text-white hover:bg-amber-600' 
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-200' 
+                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
               }`}
             >
               {isAlreadyHelper ? (
@@ -227,117 +225,102 @@ export function HelperView({ profile }: HelperViewProps) {
                 </>
               )}
             </button>
-            <div className="h-2 w-2 bg-emerald-500 rounded-full animate-ping flex-shrink-0" title="System Live" />
+          </div>
+
+          {/* Search bar inside header panel */}
+          <div className="relative mt-2">
+            <Search className="absolute left-3.5 top-2.5 text-slate-400" size={15} />
+            <input 
+              type="text"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Search by specialty, skill or name..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          {/* Easy horizontal slider categories scroll */}
+          <div className="flex gap-1.5 overflow-x-auto py-2 no-scrollbar scroll-smooth -mx-5 px-5 mt-1">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  selectedCategory === cat
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-550 hover:bg-slate-200/80'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Search Input */}
-        <div className="relative mb-4">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search by specialty, skill or name..." 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200/80 py-3 pl-12 pr-4 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all text-slate-800"
-          />
-        </div>
-
-        {/* Horizontal Category Pill Bar */}
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar whitespace-nowrap scroll-smooth">
-          {CATEGORIES.map(category => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-4 py-2 rounded-xl text-xs font-black tracking-tight transition-all duration-300 ${
-                selectedCategory === category 
-                  ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10' 
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800'
-              }`}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Grid List */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Listings Grid */}
+        <div className="flex-1 overflow-y-auto w-full max-w-7xl mx-auto px-4 py-4 pb-36">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {filteredHelpers.map((helper, idx) => (
             <motion.div 
               key={helper.id}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: idx * 0.05 }}
-              whileHover={{ y: -4, transition: { duration: 0.2 } }}
-              className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col group relative"
+              className="bg-white rounded-[24px] border border-slate-205 overflow-hidden transition-all duration-300 hover:shadow-lg flex flex-col group relative cursor-pointer"
               onClick={() => setSelectedHelper(helper)}
             >
               {/* Image Section */}
-              <div className="relative h-44 w-full bg-slate-100 overflow-hidden">
-                <img 
-                  src={helper.profilePic} 
-                  alt={helper.name} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                />
+              <div className="relative aspect-[4/3] w-full bg-slate-100 overflow-hidden">
+                {helper.faceVideoUrl ? (
+                  <video src={helper.faceVideoUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" autoPlay loop muted playsInline />
+                ) : (
+                  <img 
+                    src={helper.profilePic} 
+                    alt={helper.name} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                )}
                 
                 {/* Favorite Heart Button */}
                 <button 
                   onClick={(e) => toggleFavorite(helper.id, e)} 
-                  className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur-md rounded-xl shadow-md hover:bg-white text-slate-400 hover:text-red-500 transition-colors z-10"
+                  className="absolute top-3 right-3 p-1.5 bg-black/60 backdrop-blur-md rounded-xl shadow-md text-white hover:text-red-400 transition-colors z-10"
                 >
-                  <Heart size={16} fill={favorites[helper.id] ? "#ef4444" : "transparent"} className={favorites[helper.id] ? "text-red-500 scale-110" : "transition-transform"} />
+                  <Heart size={14} fill={favorites[helper.id] ? "#ef4444" : "transparent"} className={favorites[helper.id] ? "text-red-500 scale-110" : "transition-transform"} />
                 </button>
 
                 {/* Status Indicator */}
-                {helper.availableNow ? (
-                  <span className="absolute bottom-4 left-4 flex items-center gap-1 text-[10px] font-bold bg-emerald-500 text-white px-2.5 py-1 rounded-lg shadow-lg shadow-emerald-500/20">
-                    <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> Active Now
-                  </span>
-                ) : (
-                  <span className="absolute bottom-4 left-4 flex items-center gap-1 text-[10px] font-bold bg-slate-700/80 text-white px-2.5 py-1 rounded-lg backdrop-blur-sm">
-                    Booked today
-                  </span>
-                )}
+                <span className={`absolute top-3 left-3 flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-white px-2.5 py-1 rounded-full shadow ${helper.availableNow ? 'bg-blue-600' : 'bg-slate-700'}`}>
+                   {helper.availableNow ? 'Active Now' : 'Booked'}
+                </span>
               </div>
 
               {/* Card Meta Content */}
-              <div className="p-5 flex-1 flex flex-col justify-between">
+              <div className="p-4 flex-1 flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-wider">{helper.role}</span>
-                    <div className="flex items-center gap-1 text-slate-700 bg-amber-500/10 px-2 py-0.5 rounded-lg text-[10px] font-black">
-                      <Star size={10} className="fill-amber-500 text-amber-500" />
-                      {helper.rating}
-                    </div>
-                  </div>
-
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-blue-600">
+                    {helper.role}
+                  </span>
                   <div className="flex items-center gap-1.5">
-                    <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                    <h3 className="font-extrabold text-slate-900 text-sm mt-0.5 leading-snug group-hover:text-blue-600 transition-colors truncate">
                       {helper.name}
                     </h3>
                     {helper.verified && (
-                      <CheckCircle2 size={15} className="text-blue-500 fill-blue-50/50 flex-shrink-0" />
+                      <CheckCircle2 size={13} className="text-blue-500 flex-shrink-0" />
                     )}
                   </div>
 
-                  <p className="text-xs text-slate-500 mt-2 line-clamp-2 leading-relaxed font-medium">
+                  <p className="text-[11px] text-slate-500 line-clamp-2 mt-1.5 leading-relaxed font-medium">
                     {helper.bio}
                   </p>
                 </div>
 
-                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-slate-700 text-xs">
-                  <div className="flex items-center gap-1 text-slate-400 font-medium flex-shrink-0">
-                    <MapPin size={13} />
-                    <span className="truncate max-w-[90px]">{helper.location.split(',')[0]}</span>
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-1 text-slate-400 font-bold text-[10px]">
+                    <MapPin size={11} className="text-slate-350" />
+                    <span className="truncate max-w-[80px]">{helper.location.split(',')[0]}</span>
                   </div>
+                  
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-800 text-xs bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-lg">
+                    <span className="font-bold text-slate-900 text-xs bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-lg">
                       {helper.rate}
-                    </span>
-                    <span className="text-xs font-black text-blue-600 flex items-center gap-0.5 group-hover:text-blue-700 bg-blue-50/70 border border-blue-100/40 px-2.5 py-1 rounded-lg transition-colors">
-                      Hire <ArrowUpRight size={12} className="text-blue-500" />
                     </span>
                   </div>
                 </div>
@@ -354,11 +337,19 @@ export function HelperView({ profile }: HelperViewProps) {
             {/* Top header portfolio section */}
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6 pb-6 border-b border-slate-100">
               <div className="relative flex-shrink-0">
-                <img 
-                  src={selectedHelper.profilePic} 
-                  alt={selectedHelper.name} 
-                  className="w-28 h-28 rounded-3xl object-cover shadow-md border-4 border-white" 
-                />
+                {selectedHelper.faceVideoUrl ? (
+                  <video 
+                    src={selectedHelper.faceVideoUrl} 
+                    className="w-28 h-28 rounded-3xl object-cover shadow-md border-4 border-white" 
+                    autoPlay loop muted playsInline
+                  />
+                ) : (
+                  <img 
+                    src={selectedHelper.profilePic} 
+                    alt={selectedHelper.name} 
+                    className="w-28 h-28 rounded-3xl object-cover shadow-md border-4 border-white" 
+                  />
+                )}
                 {selectedHelper.verified && (
                   <div className="absolute -bottom-1 -right-1 bg-blue-500 p-1 rounded-full text-white border border-white">
                     <CheckCircle2 size={14} className="fill-blue-500 text-white" />
@@ -675,11 +666,15 @@ export function HelperView({ profile }: HelperViewProps) {
               {/* Real-time Rendered Card */}
               <div className="bg-white rounded-3xl overflow-hidden border border-slate-200/80 shadow-md flex flex-col relative w-full max-w-sm mx-auto">
                 <div className="relative h-44 w-full bg-slate-150 overflow-hidden">
-                  <img 
-                    src={profile.facePictureUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300'} 
-                    alt={profile.name} 
-                    className="w-full h-full object-cover"
-                  />
+                  {profile.faceVideoUrl ? (
+                    <video src={profile.faceVideoUrl} className="w-full h-full object-cover" autoPlay loop muted playsInline />
+                  ) : (
+                    <img 
+                      src={profile.facePictureUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300'} 
+                      alt={profile.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  )}
                   <span className="absolute bottom-4 left-4 flex items-center gap-1 text-[10px] font-bold bg-emerald-500 text-white px-2.5 py-1 rounded-lg">
                     <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> Active Now
                   </span>

@@ -6,6 +6,8 @@ import { WalletView } from './components/WalletView';
 import { AdminView } from './components/AdminView';
 import { ProfileView } from './components/ProfileView';
 import { ChatView } from './components/ChatView';
+import { MarketView } from './components/MarketView';
+import { AuthView } from './components/AuthView';
 import { View, Payment, UserProfile, NotificationItem, Gig } from './types';
 import { playSoftChime, playSoftClick } from './lib/audio';
 import LiveStorageService, { isSupabaseConfigured } from './lib/supabase';
@@ -19,9 +21,16 @@ const INITIAL_GIGS: Gig[] = [];
 const INITIAL_NOTIFICATIONS: NotificationItem[] = [];
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentView, setCurrentView] = useState<View>('Helper');
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
   const [isSplashActive, setIsSplashActive] = useState(true);
+  const [isGiGfalling, setIsGiGfalling] = useState(false);
+  const handleGiGClick = () => {
+    setIsGiGfalling(true);
+    setTimeout(() => setIsSplashActive(false), 800);
+  };
+
   const [payments, setPayments] = useState<Payment[]>([]);
   const [balance, setBalance] = useState<number>(1800);
   const [profit, setProfit] = useState<number>(39.99);
@@ -47,8 +56,11 @@ export default function App() {
     ],
     certificateUrls: ['https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=300'],
     idDocumentUrls: ['https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?w=300'],
-    isVerified: true
+    isVerified: true,
+    registrationDate: '2026-06-01T00:00:00Z'
   });
+
+  const [chatTargetSellerEmail, setChatTargetSellerEmail] = useState<string | undefined>(undefined);
 
   // --- Real-Time Sync & Lazy Backing loaders ---
   useEffect(() => {
@@ -94,7 +106,22 @@ export default function App() {
     if (profile && profile.email) {
       LiveStorageService.updateProfile(profile, balance, profit);
     }
-  }, [balance, profit, profile]);
+    
+    // Account termination check
+    if (isAuthenticated && profile.registrationDate) {
+      const regDate = new Date(profile.registrationDate);
+      const now = new Date();
+      const diffTime = Math.abs(now.getTime() - regDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      const isComplete = profile.name && profile.facePictureUrl && profile.idDocumentUrls && profile.idDocumentUrls.length > 0;
+      
+      if (diffDays > 5 && !isComplete) {
+        setIsAuthenticated(false);
+        alert("Account terminated due to incomplete profile after 5 days.");
+      }
+    }
+  }, [balance, profit, profile, isAuthenticated]);
 
   // Intercept state changes to automatically write updates to Supabase
   const handleSetGigs = (value: React.SetStateAction<Gig[]>) => {
@@ -172,6 +199,16 @@ export default function App() {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  const handleRegisterSuccess = (email: string, isFirstTime: boolean) => {
+    setIsAuthenticated(true);
+    if (isFirstTime) {
+      setBalance(prev => prev + 10);
+      setProfile(prev => ({ ...prev, email, registrationDate: new Date().toISOString() }));
+    } else {
+      setProfile(prev => ({ ...prev, email }));
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsSplashActive(false);
@@ -206,7 +243,9 @@ export default function App() {
   }, []);
 
 
-  return (
+  return !isAuthenticated ? (
+    <AuthView onRegisterSuccess={handleRegisterSuccess} />
+  ) : (
     isSplashActive ? (
       <div id="splash-container" className="min-h-screen w-full bg-slate-950 flex flex-col items-center justify-center relative overflow-hidden font-sans text-white select-none">
         {/* Sleek aesthetic ambient background */}
@@ -228,7 +267,12 @@ export default function App() {
               transition={{ delay: 0.3, duration: 0.7, ease: "easeOut" }}
               className="text-3xl font-black uppercase tracking-[0.25em] text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-400 pl-[0.25em]"
             >
-              TimeGiG
+              Time<motion.span 
+                animate={isGiGfalling ? { rotate: 90, y: 500, opacity: 0 } : { rotateZ: [-5, 5, -5] }} 
+                transition={isGiGfalling ? { duration: 0.8, ease: "easeIn" } : { repeat: Infinity, duration: 2, ease: "easeInOut" }} 
+                className="inline-block origin-top bg-amber-400 text-slate-900 px-1 rounded shadow-sm cursor-pointer"
+                onClick={handleGiGClick}
+              >GiG</motion.span>
             </motion.h1>
           </div>
         </motion.div>
@@ -250,24 +294,26 @@ export default function App() {
         </div>
       </div>
     ) : (
-    <div id="app-container" className="min-h-screen bg-slate-50/35 relative font-sans text-slate-800 antialiased selection:bg-blue-600 selection:text-white">
-      {/* Dynamic top bar, styled for elegant desktop/mobile presentation */}
-      <header className="fixed top-0 left-0 right-0 h-16 flex items-center justify-between px-6 z-40 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <span className="text-sm font-black uppercase tracking-[0.16em] text-slate-900">TimeGiG</span>
+    <div id="app-container" className="h-screen w-full overflow-hidden bg-slate-50/35 relative font-sans text-slate-800 antialiased selection:bg-blue-600 selection:text-white flex flex-col">
+      {/* Master Top Header Bar (Fused and Unified like YouTube, TikTok & WhatsApp) */}
+      <header className="h-14 w-full bg-white border-b border-slate-250 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 z-40 select-none">
+        {/* Brand logo & DB Status on left */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-black uppercase tracking-[0.16em] text-slate-900">Time<motion.span animate={{ rotateZ: [-5, 5, -5] }} transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }} className="inline-block origin-top bg-amber-400 text-slate-900 px-1 rounded shadow-sm">GiG</motion.span></span>
           {isSupabaseConfigured ? (
-            <span className="px-1.5 py-0.5 sm:px-2 rounded-full text-[8.5px] font-black uppercase bg-emerald-50 text-emerald-600 border border-emerald-100/60 flex items-center gap-1">
-              <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-emerald-50 text-emerald-600 border border-emerald-100/60 flex items-center gap-1">
+              <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
               LIVE DB
             </span>
           ) : (
-            <span className="px-1.5 py-0.5 sm:px-2 rounded-full text-[8.5px] font-black uppercase bg-amber-50 text-amber-600 border border-amber-100/60 flex items-center gap-1">
-              <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span className="px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-amber-50 text-amber-600 border border-amber-100/60 flex items-center gap-1">
+              <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" />
               MIGRATED
             </span>
           )}
         </div>
-        
+
+        {/* Fused Right Actions Group */}
         <div className="flex items-center gap-2">
           {/* Operator mode dashboard pill */}
           <button 
@@ -275,14 +321,14 @@ export default function App() {
               setCurrentView('Admin');
               setIsNavbarVisible(true);
             }} 
-            className={`p-2 rounded-xl transition-all border flex items-center gap-1.5 text-xs font-black uppercase tracking-wider ${
+            className={`p-1.5 sm:px-3 sm:py-1.5 rounded-xl transition-all border flex items-center gap-1.5 text-xs font-black uppercase tracking-wider shadow-sm hover:shadow-md ${
               currentView === 'Admin' 
-                ? 'bg-red-50 text-red-600 border-red-200' 
-                : 'bg-slate-50 border-slate-200/50 text-slate-500 hover:text-slate-800'
+                ? 'bg-red-50 text-red-650 border-red-200' 
+                : 'bg-white/95 border-slate-200/50 text-slate-500 hover:text-slate-800'
             }`}
             title="Operator Panel"
           >
-            <UserCog size={15} />
+            <UserCog size={14} />
             <span className="hidden sm:inline">Operator Panel</span>
           </button>
 
@@ -295,16 +341,16 @@ export default function App() {
               key={bellTrigger}
               transition={{ duration: 0.65, ease: "easeInOut" }}
               onClick={() => setIsNotifDropdownOpen(!isNotifDropdownOpen)}
-              className={`p-2 rounded-xl transition-all border relative flex items-center justify-center ${
+              className={`p-2 rounded-xl transition-all border relative flex items-center justify-center shadow-sm hover:shadow-md ${
                 isNotifDropdownOpen 
-                  ? 'bg-slate-100 border-slate-300 text-slate-800 shadow-slate-200 shadow-md' 
-                  : 'bg-slate-50 border-slate-200/50 text-slate-500 hover:text-slate-800'
+                  ? 'bg-slate-100 border-slate-300 text-slate-800 shadow-slate-200 shadow-sm' 
+                  : 'bg-white/95 border-slate-200/50 text-slate-500 hover:text-slate-800'
               }`}
               title="Alert Notifications"
             >
-              <Bell size={16} />
+              <Bell size={15} />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-red-600 text-white rounded-full flex items-center justify-center font-black text-[9px] border-2 border-white leading-none">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 text-white rounded-full flex items-center justify-center font-black text-[8px] border border-white leading-none">
                   {unreadCount}
                 </span>
               )}
@@ -342,7 +388,7 @@ export default function App() {
                   <div className="max-h-72 overflow-y-auto divide-y divide-slate-105">
                     {notifications.length === 0 ? (
                       <div className="p-8 text-center text-slate-400 flex flex-col items-center justify-center">
-                        <Bell size={24} className="text-slate-300 stroke-1 mb-2 animate-bounce" />
+                        <Bell size={21} className="text-slate-300 stroke-1 mb-2 animate-bounce" />
                         <h5 className="font-bold text-xs text-slate-700">All quiet for now</h5>
                         <p className="text-[10px] mt-1">When admin launches promotions or lists tasks, you will receive real-time alerts.</p>
                       </div>
@@ -423,29 +469,27 @@ export default function App() {
               setCurrentView('Profile');
               setIsNavbarVisible(true);
             }} 
-            className={`p-1.5 rounded-full transition-all border ${
+            className={`p-1 rounded-full transition-all border shadow-sm hover:shadow-md ${
               currentView === 'Profile' 
                 ? 'ring-2 ring-blue-600 border-white bg-blue-50' 
-                : 'border-slate-200/50 bg-slate-105 hover:bg-slate-100'
+                : 'border-slate-200/50 bg-white/95 backdrop-blur hover:bg-slate-100/90'
             }`}
           >
-            {profile.facePictureUrl ? (
-              <img src={profile.facePictureUrl} className="w-7 h-7 rounded-full object-cover shadow-sm" alt="My Profile avatar" />
+            {profile.faceVideoUrl ? (
+              <video src={profile.faceVideoUrl} className="w-6.5 h-6.5 rounded-full object-cover" autoPlay loop muted playsInline />
+            ) : profile.facePictureUrl ? (
+              <img src={profile.facePictureUrl} className="w-6.5 h-6.5 rounded-full object-cover" alt="My Profile avatar" />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-slate-500">
-                <User size={14} />
+              <div className="w-6.5 h-6.5 rounded-full bg-slate-200 flex items-center justify-center text-slate-500">
+                <User size={13} />
               </div>
             )}
           </button>
         </div>
       </header>
       
-      {/* Views routing container */}
-      <main id="main-content" className={`pt-16 flex flex-col ${
-        currentView === 'Chat' 
-          ? (isNavbarVisible ? 'h-[calc(100vh-9rem)] pb-0' : 'h-[calc(100vh-4rem)] pb-0') 
-          : 'pb-20 min-h-screen'
-      }`}>
+       {/* Views routing container - fills screen perfectly with unified height constraint like YouTube and WhatsApp */}
+      <main id="main-content" className="flex-1 overflow-hidden relative flex flex-col w-full h-full select-none">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentView}
@@ -453,20 +497,22 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15, ease: "easeInOut" }}
-            className="flex-1 w-full"
+            className="flex-1 w-full h-full flex flex-col overflow-hidden"
           >
             {currentView === 'Helper' && <HelperView profile={profile} />}
             {currentView === 'GiGs' && <GigsView gigs={gigs} setGigs={handleSetGigs} onAddNotification={addNotification} profile={profile} />}
+            {currentView === 'Market' && <MarketView profile={profile} onAddNotification={addNotification} setChatTargetSellerEmail={setChatTargetSellerEmail} setCurrentView={setCurrentView} />}
             {currentView === 'Chat' && (
               <ChatView 
                 isNavbarVisible={isNavbarVisible} 
                 setIsNavbarVisible={setIsNavbarVisible} 
                 profile={profile}
+                initialContactId={chatTargetSellerEmail}
               />
             )}
             {currentView === 'Cwallet' && <WalletView onNavigate={setCurrentView} payments={payments} setPayments={handleSetPayments} balance={balance} />}
             {currentView === 'Admin' && <AdminView payments={payments} setPayments={handleSetPayments} setBalance={setBalance} profit={profit} setProfit={setProfit} gigs={gigs} setGigs={handleSetGigs} addNotification={addNotification} />}
-            {currentView === 'Profile' && <ProfileView profile={profile} setProfile={handleSetProfile} />}
+            {currentView === 'Profile' && <ProfileView profile={profile} setProfile={handleSetProfile} onLogout={() => setIsAuthenticated(false)} />}
           </motion.div>
         </AnimatePresence>
       </main>

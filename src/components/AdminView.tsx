@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Check, X, Eye, ShieldAlert, TrendingUp, AlertCircle, FileCheck, CheckCircle2, Megaphone, Plus, BellRing } from 'lucide-react';
 import { FullScreenModal } from './FullScreenModal';
 import { Payment, Gig } from '@/src/types';
+import { playSoftChime } from '../lib/audio';
+import { CoinAnimation } from './CoinAnimation';
 
 export function AdminView({ 
   payments, 
@@ -24,6 +26,7 @@ export function AdminView({
   addNotification: (title: string, message: string, type: 'gig' | 'promotion' | 'system') => void
 }) {
   const [selectedProof, setSelectedProof] = useState<string | null>(null);
+  const [showCoinAnimation, setShowCoinAnimation] = useState(false);
 
   // Broadcaster State
   const [promoTitle, setPromoTitle] = useState('');
@@ -86,6 +89,11 @@ export function AdminView({
     setBalance(prev => prev + coins);
     setProfit(prev => prev + parseFloat(payment.price.replace('R', '').replace(',', '.')));
     setPayments(prev => prev.filter(item => item.id !== payment.id));
+    
+    // Trigger animation
+    setShowCoinAnimation(true);
+    playSoftChime();
+    setTimeout(() => setShowCoinAnimation(false), 2000);
   };
 
   const rejectPayment = (payment: Payment) => {
@@ -298,6 +306,7 @@ export function AdminView({
       </div>
       
       {/* Proof of Payment Fullscreen Modal content */}
+      {showCoinAnimation && <CoinAnimation />}
       <FullScreenModal isOpen={!!selectedProof} onClose={() => setSelectedProof(null)}>
         <div className="p-6">
           <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">

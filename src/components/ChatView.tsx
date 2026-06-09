@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Users, X, Phone, Check, ArrowLeft, Smile, CheckCheck, Plus, Mic, Trash2, ShieldAlert, Sparkles, CheckCircle, Navigation } from 'lucide-react';
+import { Send, User, Users, X, Phone, Check, ArrowLeft, Smile, CheckCheck, Plus, Mic, Trash2, ShieldAlert, Sparkles, CheckCircle, Navigation, Share2 } from 'lucide-react';
 import { ChatMessage, UserProfile } from '../types';
 import LiveStorageService from '../lib/supabase';
 
@@ -18,10 +18,11 @@ interface ChatViewProps {
   isNavbarVisible: boolean;
   setIsNavbarVisible: (visible: boolean) => void;
   profile?: UserProfile;
+  initialContactId?: string | number;
 }
 
-export function ChatView({ isNavbarVisible, setIsNavbarVisible, profile }: ChatViewProps) {
-  const [activeContactId, setActiveContactId] = useState<string | number>('100'); // Default to Gemini Assistant
+export function ChatView({ isNavbarVisible, setIsNavbarVisible, profile, initialContactId }: ChatViewProps) {
+  const [activeContactId, setActiveContactId] = useState<string | number>(initialContactId || '100'); // Default to Gemini Assistant
   const [contacts, setContacts] = useState<Contact[]>([
     { id: '100', name: 'TimeGiG Assistant', phone: 'AI Co-Pilot', isUsingApp: true, avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&q=80', isAI: true }
   ]);
@@ -296,14 +297,14 @@ export function ChatView({ isNavbarVisible, setIsNavbarVisible, profile }: ChatV
             onClick={() => setShowContacts(true)}
             className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 px-4 py-2.5 rounded-xl text-slate-700 text-xs font-black transition-colors shadow-sm"
           >
-            <Users size={14} />
+            <Users size={12} />
             <span>Contacts List</span>
           </button>
         </div>
       </div>
 
       {/* Message history grid */}
-      <div className="flex-1 overflow-y-auto space-y-4 px-6 py-4 no-scrollbar">
+      <div className="flex-1 overflow-y-auto space-y-4 px-6 py-4 pb-20 no-scrollbar">
         {activeMessages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
             <div className={`max-w-[78%] p-3.5 rounded-2xl flex gap-3 ${
@@ -352,8 +353,8 @@ export function ChatView({ isNavbarVisible, setIsNavbarVisible, profile }: ChatV
         <div ref={messagesEndRef} />
       </div>
       
-      {/* Dynamic Bottom bar input suite */}
-      <div className="flex flex-col bg-white border-t border-slate-100 flex-shrink-0 shadow-lg z-40">
+      {/* Dynamic Bottom bar input suite - Fixed position on top of the navbar */}
+      <div className="fixed bottom-16 left-0 right-0 flex flex-col bg-white border-t border-slate-200 shadow-xl z-50">
         {attachment && (
           <div className="bg-white border-t border-slate-100 p-3 flex gap-2 overflow-x-auto w-full">
             <div className="relative inline-block shrink-0">
@@ -378,20 +379,20 @@ export function ChatView({ isNavbarVisible, setIsNavbarVisible, profile }: ChatV
 
         {/* Input keys */}
         <div className="bg-white p-3 border-t border-slate-100">
-          <div className="bg-slate-50 rounded-2xl flex items-center p-1.5 pl-4 relative border border-slate-150">
+          <div className="bg-white rounded-2xl flex items-center p-2 pl-4 relative border border-slate-200 shadow-inner">
             {!isRecording && (
               <>
                 <button 
                   onClick={() => setShowEmojis(!showEmojis)} 
-                  className={`mr-2.5 transition-colors ${showEmojis ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                  className={`mr-2.5 transition-colors ${showEmojis ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
                 >
-                  <Smile size={20} />
+                  <Smile size={22} />
                 </button>
                 <button 
                   onClick={() => fileInputRef.current?.click()} 
-                  className="mr-2 text-slate-400 hover:text-slate-600 transition-colors"
+                  className="mr-3 text-slate-500 hover:text-slate-800 transition-colors"
                 >
-                  <Plus size={20} />
+                  <Plus size={22} />
                 </button>
                 <input 
                   type="file" 
@@ -402,7 +403,7 @@ export function ChatView({ isNavbarVisible, setIsNavbarVisible, profile }: ChatV
                 />
                 
                 {showEmojis && (
-                  <div className="absolute bottom-16 left-0 bg-white border border-slate-100 shadow-2xl rounded-2xl p-3 grid grid-cols-5 gap-1.5 z-50 animate-in fade-in slide-in-from-bottom-2">
+                  <div className="absolute bottom-16 left-0 bg-white border border-slate-200 shadow-2xl rounded-2xl p-3 grid grid-cols-5 gap-1.5 z-50 animate-in fade-in slide-in-from-bottom-2">
                     {EMOJIS.map(emoji => (
                       <button 
                         key={emoji} 
@@ -418,13 +419,13 @@ export function ChatView({ isNavbarVisible, setIsNavbarVisible, profile }: ChatV
             )}
 
             {isRecording ? (
-              <div className="flex-1 flex items-center justify-between px-2 h-9">
+              <div className="flex-1 flex items-center justify-between px-2 h-10">
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-                  <span className="text-red-650 font-bold text-xs tabular-nums">{formatTime(recordingTime)}</span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
+                  <span className="text-red-700 font-black text-sm tabular-nums">{formatTime(recordingTime)}</span>
                 </div>
-                <button onClick={cancelRecording} className="text-slate-400 hover:text-slate-600 transition-colors px-2">
-                  <Trash2 size={16} />
+                <button onClick={cancelRecording} className="text-slate-500 hover:text-red-600 transition-colors px-2">
+                  <Trash2 size={20} />
                 </button>
               </div>
             ) : (
@@ -433,8 +434,8 @@ export function ChatView({ isNavbarVisible, setIsNavbarVisible, profile }: ChatV
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder={`Type message or task details...`}
-                className="flex-1 bg-transparent border-none focus:outline-none py-1.5 text-xs font-semibold text-slate-800"
+                placeholder={`Type your message here...`}
+                className="flex-1 bg-transparent border-none focus:outline-none py-2 text-sm font-medium text-slate-900 placeholder-slate-400"
               />
             )}
 
@@ -486,12 +487,34 @@ export function ChatView({ isNavbarVisible, setIsNavbarVisible, profile }: ChatV
                 <h2 className="text-lg font-black text-slate-900">Platform Contacts</h2>
                 <p className="text-xs text-slate-400 font-bold uppercase">{appUsers.length} online helpers</p>
               </div>
-              <button 
-                onClick={() => setShowContacts(false)}
-                className="w-9 h-9 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500"
-              >
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => {
+                    if (navigator.share) {
+                      navigator.share({
+                        title: 'TimeGiG',
+                        text: 'Join me on TimeGiG!',
+                        url: window.location.href,
+                      }).catch((err: Error) => {
+                        if (err.name !== 'AbortError') {
+                          console.error('Sharing failed:', err);
+                        }
+                      });
+                    } else {
+                      alert('Sharing is not supported on this device.');
+                    }
+                  }}
+                  className="w-9 h-9 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500"
+                >
+                  <Share2 size={16} />
+                </button>
+                <button 
+                  onClick={() => setShowContacts(false)}
+                  className="w-9 h-9 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">

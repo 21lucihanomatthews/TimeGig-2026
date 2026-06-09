@@ -28,15 +28,28 @@ app.post("/api/helper", async (req, res) => {
     return res.status(400).json({ error: "Message is required" });
   }
 
-  try {
-    const response = await genAI.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: message,
-      config: {
-        systemInstruction: "You are an expert helper assistant specialized in gigs, tasks, and digital wallets. Be concise, helpful, and professional.",
+  const generateWithRetry = async (retries: number, total: number): Promise<any> => {
+    try {
+      return await genAI.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: message,
+        config: {
+          systemInstruction: "You are an expert helper assistant specialized in gigs, tasks, and digital wallets. Be concise, helpful, and professional.",
+        },
+      });
+    } catch (err: any) {
+      if (retries > 0 && (err.message || "").includes("503")) {
+        const delay = (total - retries + 1) * 2000;
+        console.warn(`Gemini API 503 error, retrying... (${retries} retries left, waiting ${delay}ms)`);
+        await new Promise((res) => setTimeout(res, delay));
+        return generateWithRetry(retries - 1, total);
       }
-    });
+      throw err;
+    }
+  };
 
+  try {
+    const response = await generateWithRetry(4, 4);
     res.json({ text: response.text });
   } catch (error: any) {
     console.error("Gemini API Error caught:", error);

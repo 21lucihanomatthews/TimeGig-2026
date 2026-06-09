@@ -4,7 +4,8 @@ import { Wallet, ArrowUpRight, ArrowDownLeft, Activity, RefreshCw, CheckCircle, 
 import { AreaChart, Area, Tooltip, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { WalletTransaction, WalletBalance, Payment } from '@/src/types';
 import { FullScreenModal } from './FullScreenModal';
-import { isSoundEnabled, setSoundEnabled, playSoftClick } from '../lib/audio';
+import { isSoundEnabled, setSoundEnabled, playSoftClick, playSoftChime } from '../lib/audio';
+import { CoinAnimation } from './CoinAnimation';
 
 
 const CHART_HISTORY = [
@@ -52,6 +53,7 @@ export function WalletView({ onNavigate, payments, setPayments, balance }: { onN
   const [selectedOption, setSelectedOption] = useState<any>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
+  const [showCoinAnimation, setShowCoinAnimation] = useState(false);
   const [proofUrl, setProofUrl] = useState<string | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
@@ -153,18 +155,23 @@ export function WalletView({ onNavigate, payments, setPayments, balance }: { onN
     setPayments([...payments, newPayment]);
     setIsReviewing(true);
     setTimeout(() => {
-      setIsTopUpOpen(false);
-      setShowPayment(false);
       setIsReviewing(false);
-      setProofUrl(null);
-      onNavigate('GiGs');
+      setShowCoinAnimation(true);
+      playSoftChime();
+      setTimeout(() => {
+        setIsTopUpOpen(false);
+        setShowPayment(false);
+        setShowCoinAnimation(false);
+        setProofUrl(null);
+        onNavigate('GiGs');
+      }, 2000);
     }, 2000);
   };
 
   return (
-    <div className="bg-slate-50/50 h-full overflow-y-auto pb-24">
+    <div className="flex flex-col h-full bg-slate-50/50 select-none">
       {/* Top Banner layout */}
-      <div className="bg-white p-6 border-b border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-6 border-b border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0">
         <div className="flex items-center gap-4">
           <motion.div
             initial={{ scale: 0.8, rotate: 10, opacity: 0 }}
@@ -195,7 +202,7 @@ export function WalletView({ onNavigate, payments, setPayments, balance }: { onN
         </div>
       </div>
 
-      <div className="p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-36">
         {/* Visa-style premium card component & simple stats */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
@@ -363,6 +370,7 @@ export function WalletView({ onNavigate, payments, setPayments, balance }: { onN
       </div>
 
       {/* Select Buy Option & Secure Payment overlay */}
+      {showCoinAnimation && <CoinAnimation />}
       <FullScreenModal isOpen={isTopUpOpen} onClose={() => { setIsTopUpOpen(false); setShowPayment(false); setIsReviewing(false); }}>
         {isReviewing ? (
           <div className="text-center p-12">

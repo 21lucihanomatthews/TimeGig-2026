@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Gig, NotificationItem, Payment, UserProfile, PremiumHelper } from '../types';
+import { Gig, NotificationItem, Payment, UserProfile, PremiumHelper, MarketItem } from '../types';
 
 const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || 'https://guzmtlduruhusnqjffph.supabase.co';
 const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
@@ -528,8 +528,8 @@ class LiveStorageService {
     }
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*');
+          .from('profiles')
+          .select('*');
       if (error) {
         if (error.message.includes('does not exist')) return [];
         throw error;
@@ -552,6 +552,97 @@ class LiveStorageService {
     } catch (err) {
       console.error("Supabase getAllProfiles error:", err);
       return [];
+    }
+  }
+
+  // --- MARKETPLACE ITEMS STORAGE ---
+  static async getMarketItems(initialItems: MarketItem[]): Promise<MarketItem[]> {
+    if (!supabase) {
+      return this.getLocal('market_items', initialItems);
+    }
+    try {
+      const { data, error } = await supabase
+        .from('market_items')
+        .select('*')
+        .order('timestamp', { ascending: false });
+
+      if (error) {
+        if (error.message.includes('does not exist')) {
+          return this.getLocal('market_items', initialItems);
+        }
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        return this.getLocal('market_items', initialItems);
+      }
+
+      return data.map(item => ({
+        id: String(item.id),
+        title: item.title,
+        description: item.description,
+        price: item.price,
+        category: item.category,
+        status: item.status,
+        sellerName: item.seller_name,
+        sellerEmail: item.seller_email,
+        sellerContact: item.seller_contact,
+        location: item.location,
+        imageUrl: item.image_url,
+        timestamp: Number(item.timestamp),
+        views: Number(item.views || 0),
+        interestedCount: Number(item.interested_count || 0)
+      }));
+    } catch (err) {
+      console.error("Supabase load market items error:", err);
+      return this.getLocal('market_items', initialItems);
+    }
+  }
+
+  static async saveMarketItem(item: MarketItem) {
+    if (!supabase) {
+      const current = this.getLocal<MarketItem>('market_items', []);
+      const filtered = current.filter(i => i.id !== item.id);
+      this.saveLocal('market_items', [item, ...filtered]);
+      return;
+    }
+    try {
+      const payload = {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        price: item.price,
+        category: item.category,
+        status: item.status,
+        seller_name: item.sellerName,
+        seller_email: item.sellerEmail,
+        seller_contact: item.sellerContact,
+        location: item.location,
+        image_url: item.imageUrl || '',
+        timestamp: item.timestamp,
+        views: item.views,
+        interested_count: item.interestedCount
+      };
+      const { error } = await supabase.from('market_items').upsert([payload]);
+      if (error) throw error;
+    } catch (err) {
+      console.error("Supabase save market item error:", err);
+      const current = this.getLocal<MarketItem>('market_items', []);
+      const filtered = current.filter(i => i.id !== item.id);
+      this.saveLocal('market_items', [item, ...filtered]);
+    }
+  }
+
+  static async deleteMarketItem(id: string) {
+    if (!supabase) {
+      const current = this.getLocal<MarketItem>('market_items', []);
+      this.saveLocal('market_items', current.filter(i => i.id !== id));
+      return;
+    }
+    try {
+      await supabase.from('market_items').delete().eq('id', id);
+    } catch (err) {
+      console.error("Supabase delete market item error:", err);
     }
   }
 }

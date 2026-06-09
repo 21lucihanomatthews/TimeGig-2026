@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type View = 'Helper' | 'GiGs' | 'Cwallet' | 'Admin' | 'Profile' | 'Chat';
+export type View = 'Helper' | 'GiGs' | 'Cwallet' | 'Admin' | 'Profile' | 'Chat' | 'Market';
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -33,6 +33,7 @@ export interface Helper {
   id: string;
   name: string;
   profilePic: string;
+  faceVideoUrl?: string;
   bio: string;
   contact: string;
   role: string;
@@ -83,9 +84,11 @@ export interface UserProfile {
   workExperiences: { title: string; company: string; duration: string }[];
   references: { name: string; contact: string }[];
   facePictureUrl?: string;
+  faceVideoUrl?: string;
   certificateUrls: string[];
   idDocumentUrls: string[];
   isVerified: boolean;
+  registrationDate?: string;
 }
 
 export interface NotificationItem {
@@ -96,5 +99,22 @@ export interface NotificationItem {
   timestamp: number;
   read: boolean;
   meta?: any;
+}
+
+export interface MarketItem {
+  id: string;
+  title: string;
+  description: string;
+  price: string;
+  category: string;
+  status: 'available' | 'sold';
+  sellerName: string;
+  sellerEmail: string;
+  sellerContact: string;
+  location: string;
+  imageUrl?: string;
+  timestamp: number;
+  views: number;
+  interestedCount: number;
 }
 

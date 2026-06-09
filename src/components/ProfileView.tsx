@@ -1,13 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { UserProfile } from '@/src/types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Camera, Upload, Briefcase, GraduationCap, Edit, User, FileText, CheckCircle2, Plus, Trash2, RefreshCw, Sparkles, MapPin, Mail, Phone, BookOpen, Fingerprint } from 'lucide-react';
+import { Camera, Upload, Briefcase, GraduationCap, Edit, User, FileText, CheckCircle2, Plus, Trash2, RefreshCw, Sparkles, MapPin, Mail, Phone, BookOpen, Fingerprint, ShieldAlert, Video } from 'lucide-react';
 import { SimpleModal } from './SimpleModal';
 
-export function ProfileView({ profile, setProfile }: { profile: UserProfile, setProfile: React.Dispatch<React.SetStateAction<UserProfile>> }) {
+export function ProfileView({ profile, setProfile, onLogout }: { profile: UserProfile, setProfile: React.Dispatch<React.SetStateAction<UserProfile>>, onLogout: () => void }) {
   const [isEditing, setIsEditing] = useState(false);
   const [tempProfile, setTempProfile] = useState(profile);
   const [isScanning, setIsScanning] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [pendingVideoUrl, setPendingVideoUrl] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const [recordingTime, setRecordingTime] = useState(10);
   const [modalType, setModalType] = useState<'work' | 'ref' | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [tempItem, setTempItem] = useState<any>({});
@@ -61,12 +69,91 @@ export function ProfileView({ profile, setProfile }: { profile: UserProfile, set
       const reader = new FileReader();
       reader.onloadend = () => {
         const url = reader.result as string;
-        if (type === 'face') setTempProfile(prev => ({...prev, facePictureUrl: url}));
+        if (type === 'face') setTempProfile(prev => ({...prev, facePictureUrl: url, faceVideoUrl: undefined}));
         else if (type === 'cert') setTempProfile(prev => ({...prev, certificateUrls: [...prev.certificateUrls, url]}));
         else if (type === 'id') setTempProfile(prev => ({...prev, idDocumentUrls: [...prev.idDocumentUrls, url]}));
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleStartPreview = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      streamRef.current = stream;
+      setIsPreviewing(true);
+      setRecordingTime(10);
+    } catch (err) {
+      console.error("Camera error:", err);
+      setErrorMessage("Could not access camera. Please check permissions.");
+    }
+  };
+
+  const handleStartRecording = () => {
+    if (!streamRef.current) return;
+    
+    mediaRecorderRef.current = new MediaRecorder(streamRef.current);
+    chunksRef.current = [];
+    mediaRecorderRef.current.ondataavailable = (e) => chunksRef.current.push(e.data);
+    mediaRecorderRef.current.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      setPendingVideoUrl(url);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      setIsPreviewing(false);
+      setIsRecording(false);
+    };
+    
+    mediaRecorderRef.current.start();
+    setIsRecording(true);
+    
+    let time = 10;
+    const interval = setInterval(() => {
+      time -= 1;
+      setRecordingTime(time);
+      if (time <= 0) {
+        clearInterval(interval);
+        handleStopCapture();
+      }
+    }, 1000);
+  };
+
+  React.useEffect(() => {
+    if (isPreviewing && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [isPreviewing]);
+
+  const handleStopCapture = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handleStopPreview = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsPreviewing(false);
+    setIsRecording(false);
+    setPendingVideoUrl(null);
+  };
+
+  const handleApproveRecording = () => {
+    if (pendingVideoUrl) {
+      setTempProfile(prev => ({...prev, faceVideoUrl: pendingVideoUrl, facePictureUrl: undefined}));
+      setPendingVideoUrl(null);
+    }
+  };
+
+  const handleRetryRecording = () => {
+    setPendingVideoUrl(null);
+    handleStartPreview();
   };
 
   return (
@@ -77,20 +164,29 @@ export function ProfileView({ profile, setProfile }: { profile: UserProfile, set
           <h1 className="text-3xl font-black text-slate-900 tracking-tight mt-0.5">My Profile</h1>
         </div>
         
-        <button 
-          onClick={() => {
-            if (isEditing) {
-              setTempProfile(profile);
-              setIsEditing(false);
-            } else {
-              setTempProfile(profile);
-              setIsEditing(true);
-            }
-          }} 
-          className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black rounded-xl transition-all"
-        >
-          {isEditing ? 'Cancel Edit' : <><Edit size={14} /> Modify CV</>}
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => {
+              if (isEditing) {
+                setTempProfile(profile);
+                setIsEditing(false);
+              } else {
+                setTempProfile(profile);
+                setIsEditing(true);
+              }
+            }} 
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black rounded-xl transition-all"
+          >
+            {isEditing ? 'Cancel Edit' : <><Edit size={14} /> Modify CV</>}
+          </button>
+          
+          <button 
+            onClick={onLogout}
+            className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-black rounded-xl transition-all"
+          >
+            Logout
+          </button>
+        </div>
       </div>
       
       {/* Verify verification stats */}
@@ -157,18 +253,71 @@ export function ProfileView({ profile, setProfile }: { profile: UserProfile, set
 
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
           <div className="relative">
-            <div className="relative w-24 h-24 rounded-3xl flex-shrink-0 bg-slate-100 overflow-hidden flex items-center justify-center border-4 border-slate-50 shadow-md">
-              {tempProfile.facePictureUrl ? (
-                <img src={tempProfile.facePictureUrl} className="w-full h-full object-cover" alt="" />
+            <div className="relative w-32 h-32 rounded-[2rem] flex-shrink-0 bg-slate-100 overflow-hidden flex items-center justify-center border-4 border-slate-50 shadow-lg">
+              {pendingVideoUrl ? (
+                <div className="relative w-full h-full">
+                  <video src={pendingVideoUrl} className="w-full h-full object-cover" autoPlay loop muted playsInline />
+                  <div className="absolute inset-x-0 bottom-0 flex justify-around p-1 bg-gradient-to-t from-black/60 to-transparent">
+                    <button 
+                      onClick={(e) => { e.preventDefault(); handleRetryRecording(); }}
+                      className="p-1 px-2 bg-slate-100 hover:bg-white text-slate-900 rounded-lg text-[10px] font-bold transition-all"
+                    >
+                      Retry
+                    </button>
+                    <button 
+                      onClick={(e) => { e.preventDefault(); handleApproveRecording(); }}
+                      className="p-1 px-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[10px] font-bold shadow-lg transition-all"
+                    >
+                      Approve
+                    </button>
+                  </div>
+                </div>
+              ) : isPreviewing ? (
+                <div className="relative w-full h-full">
+                  <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                    {!isRecording ? (
+                      <button 
+                        onClick={(e) => { e.preventDefault(); handleStartRecording(); }}
+                        className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-110 transition-transform pulse-red"
+                      >
+                        <div className="w-4 h-4 bg-white rounded-sm" />
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1">
+                         <div className="flex items-center gap-1.5 px-2 py-1 bg-red-600 rounded-full text-[8px] font-black text-white animate-pulse">
+                           <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                           REC {recordingTime}s
+                         </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (isEditing ? tempProfile.faceVideoUrl : profile.faceVideoUrl) ? (
+                <video src={isEditing ? tempProfile.faceVideoUrl : profile.faceVideoUrl} className="w-full h-full object-cover" autoPlay loop muted playsInline />
+              ) : (isEditing ? tempProfile.facePictureUrl : profile.facePictureUrl) ? (
+                <img src={isEditing ? tempProfile.facePictureUrl : profile.facePictureUrl} className="w-full h-full object-cover" alt="" />
               ) : (
-                <User className="text-slate-400 w-10 h-10" />
+                <User className="text-slate-400 w-12 h-12" />
               )}
             </div>
             {isEditing && (
-              <label className="absolute -bottom-1 -right-1 p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg cursor-pointer transform hover:scale-105 active:scale-95 transition-all">
-                <Camera size={14} />
-                <input type="file" accept="image/*" onChange={(e) => { handleFileUpload(e, 'face'); e.target.value = ''; }} className="hidden" />
-              </label>
+              <div className="mt-3 flex justify-center gap-2">
+                <label className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg cursor-pointer transform hover:scale-105 active:scale-95 transition-all">
+                  <Camera size={14} />
+                  <input type="file" accept="image/*" onChange={(e) => { handleFileUpload(e, 'face'); e.target.value = ''; }} className="hidden" />
+                </label>
+                {!isPreviewing && (
+                  <button onClick={handleStartPreview} className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg cursor-pointer transform hover:scale-105 active:scale-95 transition-all">
+                    <Video size={14} />
+                  </button>
+                )}
+                {isPreviewing && (
+                  <button onClick={handleStopPreview} className="p-2 bg-slate-600 hover:bg-slate-700 text-white rounded-xl shadow-lg cursor-pointer transform hover:scale-105 active:scale-95 transition-all">
+                    <RefreshCw size={14} />
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
@@ -343,6 +492,20 @@ export function ProfileView({ profile, setProfile }: { profile: UserProfile, set
         )}
       </div>
 
+      {/* Anti-Fraud & Safety Guidelines */}
+      <div className="bg-slate-900 text-white p-6 rounded-3xl mt-6 shadow-xl border border-slate-700">
+        <div className="flex items-center gap-3 mb-4 text-amber-400">
+          <ShieldAlert size={24} />
+          <h2 className="text-lg font-black uppercase tracking-wider">Safety & Anti-Fraud</h2>
+        </div>
+        <ul className="text-xs font-medium text-slate-300 space-y-3 list-disc pl-4">
+          <li>Never provide financial information (bank details, passwords) to helpers.</li>
+          <li>Report suspicious activities or messages immediately to the Admin.</li>
+          <li>We have zero tolerance for abuse, sexual harassment, or scams. Violators are permanently banned.</li>
+          <li>Always stay on the TimeGiG platform for communication and payments.</li>
+        </ul >
+      </div>
+      
       {/* Success congratulate popup popup */}
       {showCongrats && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none">
