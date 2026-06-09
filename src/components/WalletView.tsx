@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Wallet, ArrowUpRight, ArrowDownLeft, Activity, RefreshCw, CheckCircle, User, CreditCard, Copy, Check, Upload, ArrowRight, DollarSign, Eye, Plus } from 'lucide-react';
+import { Wallet, ArrowUpRight, ArrowDownLeft, Activity, RefreshCw, CheckCircle, User, CreditCard, Copy, Check, Upload, ArrowRight, DollarSign, Eye, Plus, Volume2, VolumeX } from 'lucide-react';
 import { AreaChart, Area, Tooltip, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { WalletTransaction, WalletBalance, Payment } from '@/src/types';
 import { FullScreenModal } from './FullScreenModal';
+import { isSoundEnabled, setSoundEnabled, playSoftClick } from '../lib/audio';
+
 
 const CHART_HISTORY = [
   { day: 'Mon', balance: 650 },
@@ -19,7 +21,7 @@ const TRANSACTIONS: WalletTransaction[] = [
   { id: '1', type: 'in', amount: '250.00', currency: 'ZAR', description: 'Garden Help Payout', timestamp: Date.now() - 3600000 },
   { id: '2', type: 'out', amount: '15.00', currency: 'COIN', description: 'Platform Posting Fee', timestamp: Date.now() - 86400000 },
   { id: '3', type: 'in', amount: '400.00', currency: 'ZAR', description: 'Pet Sitting Bonus', timestamp: Date.now() - 172800000 },
-  { id: '4', type: 'out', amount: '39.99', currency: 'ZAR', description: 'Cwallet Top-up 100c', timestamp: Date.now() - 259200000 },
+  { id: '4', type: 'out', amount: '39.99', currency: 'ZAR', description: 'TimeGiG Top-up 100c', timestamp: Date.now() - 259200000 },
 ];
 
 const TOPUP_OPTIONS = {
@@ -36,7 +38,17 @@ const TOPUP_OPTIONS = {
 };
 
 export function WalletView({ onNavigate, payments, setPayments, balance }: { onNavigate: (view: 'Helper' | 'GiGs' | 'Cwallet' | 'Profile') => void, payments: Payment[], setPayments: React.Dispatch<React.SetStateAction<Payment[]>>, balance: number }) {
+  const [soundEnabled, setSoundEnabledState] = useState(isSoundEnabled());
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
+
+  const handleToggleSound = (checked: boolean) => {
+    setSoundEnabled(checked);
+    setSoundEnabledState(checked);
+    if (checked) {
+      setTimeout(() => playSoftClick(), 40);
+    }
+  };
+
   const [selectedOption, setSelectedOption] = useState<any>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -45,13 +57,13 @@ export function WalletView({ onNavigate, payments, setPayments, balance }: { onN
 
   const downloadStatementFile = () => {
     const title = `=========================================================\n` +
-                  `              CWALLET OFFICIAL DIGITAL STATEMENT         \n` +
+                  `              TIMEGIG OFFICIAL DIGITAL STATEMENT         \n` +
                   `=========================================================\n\n` +
                   `Date Generated:  ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}\n` +
                   `Cardholder:      21LUCIHANOMATTHEWS\n` +
                   `Preferred Email: 21lucihanomatthews@gmail.com\n` +
                   `Active Balance:  ${balance} COINS\n` +
-                  `Ecosystem ID:    CWALLET-823072152260-SECURE\n` +
+                  `Ecosystem ID:    TIMEGIG-823072152260-SECURE\n` +
                   `Status:          VERIFIED ONLINE CLIENT\n\n` +
                   `------------------- RECORDED TRANSACTION LEDGER -------------------\n\n` +
                   `DATE & TIME          TX REF         DESCRIPTION                          AMOUNT       CURRENCY   STATUS\n` +
@@ -102,7 +114,7 @@ export function WalletView({ onNavigate, payments, setPayments, balance }: { onN
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Cwallet_Statement_${new Date().toISOString().slice(0,10)}.txt`;
+    link.download = `TimeGiG_Statement_${new Date().toISOString().slice(0,10)}.txt`;
     link.referrerPolicy = "no-referrer";
     document.body.appendChild(link);
     link.click();
@@ -165,7 +177,7 @@ export function WalletView({ onNavigate, payments, setPayments, balance }: { onN
           <div>
             <span className="text-[10px] font-black tracking-widest text-blue-600 uppercase">DIGITAL COIN ACCOUNT</span>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-              Cwallet
+              TimeGiG
             </h1>
           </div>
         </div>
@@ -194,8 +206,8 @@ export function WalletView({ onNavigate, payments, setPayments, balance }: { onN
             
             <div className="flex justify-between items-start">
               <div>
-                <span className="text-[10px] font-black tracking-widest text-blue-400 uppercase">CWALLET ECOSYSTEM</span>
-                <h4 className="text-xl font-black tracking-tight mt-1 text-slate-100">Cwallet Card</h4>
+                <span className="text-[10px] font-black tracking-widest text-blue-400 uppercase">TIMEGIG ECOSYSTEM</span>
+                <h4 className="text-xl font-black tracking-tight mt-1 text-slate-100">TimeGiG Card</h4>
               </div>
               <CreditCard size={24} className="text-blue-400" />
             </div>
@@ -322,6 +334,30 @@ export function WalletView({ onNavigate, payments, setPayments, balance }: { onN
             <button onClick={downloadStatementFile} className="w-full mt-6 py-3 text-xs font-black text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors uppercase tracking-widest border border-slate-100">
               Download Statement
             </button>
+
+            {/* Sound Feedback Control Toggle Switch */}
+            <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`p-2 rounded-xl ${soundEnabled ? 'bg-blue-50 text-blue-600' : 'bg-slate-50 text-slate-400'}`}>
+                  {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                </div>
+                <div>
+                  <span className="text-[9px] font-black text-slate-400 tracking-wider block uppercase">Tactile Sounds</span>
+                  <span className="text-[11px] font-bold text-slate-700 block">Typing & Click Effects</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => handleToggleSound(!soundEnabled)}
+                className={`px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all border ${
+                  soundEnabled 
+                    ? 'bg-blue-50 border-blue-200 text-blue-600 shadow-sm shadow-blue-50' 
+                    : 'bg-slate-50 border-slate-200 text-slate-400'
+                }`}
+                title={soundEnabled ? "Mute interactive click sound effects" : "Enable tactile sound feedback"}
+              >
+                {soundEnabled ? '● ON' : '○ MUTED'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

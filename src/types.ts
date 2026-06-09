@@ -26,6 +26,7 @@ export interface Gig {
   images?: string[];
   startDate?: string;
   endDate?: string;
+  workerEmail?: string;
 }
 
 export interface Helper {
@@ -36,6 +37,16 @@ export interface Helper {
   contact: string;
   role: string;
   mediaUrls?: string[];
+}
+
+export interface PremiumHelper extends Helper {
+  rating: string;
+  location: string;
+  completedTasks: number;
+  rate: string;
+  availableNow: boolean;
+  specialty: string;
+  verified: boolean;
 }
 
 export interface WalletTransaction {
@@ -76,3 +87,14 @@ export interface UserProfile {
   idDocumentUrls: string[];
   isVerified: boolean;
 }
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  type: 'gig' | 'promotion' | 'system';
+  timestamp: number;
+  read: boolean;
+  meta?: any;
+}
+

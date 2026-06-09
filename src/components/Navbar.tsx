@@ -13,7 +13,7 @@ export function Navbar({ currentView, onNavigate }: NavbarProps) {
     { id: 'Helper', label: 'Helper', icon: User },
     { id: 'GiGs', label: 'GiGs', icon: Briefcase },
     { id: 'Chat', label: 'Chat', icon: MessageCircle },
-    { id: 'Cwallet', label: 'Cwallet', icon: Wallet },
+    { id: 'Cwallet', label: 'Wallet', icon: Wallet },
   ];
 
   return (

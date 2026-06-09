@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Briefcase, Clock, DollarSign, Search, Filter, Tag, Plus, X, Video, Send, Trash2, StopCircle, RefreshCw, Calendar, MapPin, Award, CheckCircle2 } from 'lucide-react';
+import { Briefcase, Clock, DollarSign, Search, Filter, Tag, Plus, X, Video, Send, Trash2, StopCircle, RefreshCw, Calendar, MapPin, Award, CheckCircle2, Sparkles, CheckCircle } from 'lucide-react';
 import { Gig } from '@/src/types';
 import { FullScreenModal } from './FullScreenModal';
+import LiveStorageService from '../lib/supabase';
 
 const INITIAL_GIGS: Gig[] = [
   { 
@@ -45,8 +46,14 @@ const INITIAL_GIGS: Gig[] = [
 
 const GIG_CATEGORIES = ['All', 'Gardener', 'Pet Sitter', 'Math Tutor', 'Handyman'];
 
-export function GigsView() {
-  const [gigs, setGigs] = useState<Gig[]>(INITIAL_GIGS);
+interface GigsViewProps {
+  gigs: Gig[];
+  setGigs: React.Dispatch<React.SetStateAction<Gig[]>>;
+  onAddNotification?: (title: string, message: string, type: 'gig' | 'promotion' | 'system') => void;
+  profile?: any;
+}
+
+export function GigsView({ gigs, setGigs, onAddNotification, profile }: GigsViewProps) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isPosting, setIsPosting] = useState(false);
@@ -61,6 +68,7 @@ export function GigsView() {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+
 
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -91,6 +99,13 @@ export function GigsView() {
       endDate: newGig.endDate
     };
     setGigs([gig, ...gigs]);
+    if (onAddNotification) {
+      onAddNotification(
+        'New Gig Published',
+        `Success! You created the casual task "${gig.title}" with budget R${gig.price}.`,
+        'gig'
+      );
+    }
     setNewGig({ title: '', description: '', price: '', images: [], startDate: 'Immediately', endDate: '' });
     setIsPosting(false);
   };
@@ -183,9 +198,119 @@ export function GigsView() {
     setVideoUrl(null);
   };
 
-  const handleSendApplication = () => {
+  const handleDirectHire = async () => {
+    if (!selectedGig) return;
+    if (selectedGig.employer === 'You' || (profile?.name && selectedGig.employer === profile.name)) {
+      alert("You cannot hire yourself for your own posted gig.");
+      return;
+    }
+    const userEmail = profile?.email || '21lucihanomatthews@gmail.com';
+
+    const updatedGig: Gig = {
+      ...selectedGig,
+      status: 'active',
+      workerEmail: userEmail
+    };
+
+    setGigs(prev => prev.map(g => g.id === selectedGig.id ? updatedGig : g));
+    setSelectedGig(updatedGig);
+
+    const allHelpers = await LiveStorageService.getHelpers([]);
+    const helperProfile = allHelpers.find(h => h.contact === userEmail);
+    if (helperProfile) {
+      const updatedHelper = {
+        ...helperProfile,
+        availableNow: false
+      };
+      await LiveStorageService.saveHelper(updatedHelper);
+    }
+
+    if (onAddNotification) {
+      onAddNotification(
+        'Work Shift Commenced',
+        `💼 You have been hired for listed task "${selectedGig.title}"! Your helper dashboard is now set to working mode (booked today).`,
+        'system'
+      );
+    }
+
+    alert('You have successfully accepted the task & entered WORKING mode (booked today)!');
+    handleCloseModal();
+  };
+
+  const handleCompleteGig = async () => {
+    if (!selectedGig) return;
+    const userEmail = profile?.email || '21lucihanomatthews@gmail.com';
+
+    const updatedGig: Gig = {
+      ...selectedGig,
+      status: 'completed'
+    };
+
+    setGigs(prev => prev.map(g => g.id === selectedGig.id ? updatedGig : g));
+    setSelectedGig(updatedGig);
+
+    const allHelpers = await LiveStorageService.getHelpers([]);
+    const helperProfile = allHelpers.find(h => h.contact === userEmail);
+    if (helperProfile) {
+      const updatedHelper = {
+        ...helperProfile,
+        availableNow: true,
+        completedTasks: (helperProfile.completedTasks || 0) + 1
+      };
+      await LiveStorageService.saveHelper(updatedHelper);
+    }
+
+    if (onAddNotification) {
+      onAddNotification(
+        'Gig Certified Complete',
+        `🎉 Casual task "${selectedGig.title}" successfully completed! Helper profile successfully returned to AVAILABLE.`,
+        'system'
+      );
+    }
+
+    alert('Gig compiled and certified complete! Your helper profile is back to AVAILABLE.');
+    handleCloseModal();
+  };
+
+  const handleSendApplication = async () => {
     if (!applyText.trim() && !videoUrl) return;
-    alert('Application sent successfully!');
+    
+    if (selectedGig) {
+      if (selectedGig.employer === 'You' || (profile?.name && selectedGig.employer === profile.name)) {
+        alert("You cannot apply or hire yourself for your own posted gig.");
+        return;
+      }
+      const userEmail = profile?.email || '21lucihanomatthews@gmail.com';
+
+      const updatedGig: Gig = {
+        ...selectedGig,
+        status: 'active',
+        workerEmail: userEmail
+      };
+
+      setGigs(prev => prev.map(g => g.id === selectedGig.id ? updatedGig : g));
+      setSelectedGig(updatedGig);
+
+      const allHelpers = await LiveStorageService.getHelpers([]);
+      const helperProfile = allHelpers.find(h => h.contact === userEmail);
+      if (helperProfile) {
+        const updatedHelper = {
+          ...helperProfile,
+          availableNow: false
+        };
+        await LiveStorageService.saveHelper(updatedHelper);
+      }
+
+      if (onAddNotification) {
+        onAddNotification(
+          'Pitch Accepted & Hired',
+          `🎉 Your application pitch for "${selectedGig.title}" was accepted instantly! You have entered WORKING mode (booked today).`,
+          'gig'
+        );
+      }
+    }
+
+    alert('Application sent successfully and pitch accepted! You are now HIRED and in working mode.');
     handleCloseModal();
   };
 
@@ -205,20 +330,20 @@ export function GigsView() {
   return (
     <div className="bg-slate-50/50 h-full overflow-y-auto pb-24">
       {/* Top Banner section */}
-      <div className="bg-white p-6 border-b border-slate-100 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+      <div className="bg-white px-5 py-3 border-b border-slate-100 shadow-sm">
+        <div className="flex justify-between items-center gap-4">
+          <div className="flex items-center gap-3">
             <motion.div
               initial={{ scale: 0.8, y: 10, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               transition={{ type: "spring", bounce: 0.4 }}
-              className="w-14 h-14 flex-shrink-0 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200"
+              className="w-10 h-10 flex-shrink-0 bg-emerald-600 rounded-xl flex items-center justify-center shadow"
             >
-              <Briefcase className="text-white" size={26} />
+              <Briefcase className="text-white" size={18} />
             </motion.div>
             <div>
-              <span className="text-[10px] font-black tracking-widest text-emerald-600 uppercase">GIG-BASED ECONOMY</span>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+              <span className="text-[10px] font-extrabold tracking-wider text-emerald-600/85 uppercase">GIGS MARKETPLACE</span>
+              <h1 className="text-xl font-black text-slate-900 tracking-tight">
                 Casual Gigs
               </h1>
             </div>
@@ -226,9 +351,9 @@ export function GigsView() {
           
           <button 
             onClick={() => setIsPosting(!isPosting)}
-            className="flex items-center justify-center gap-2 px-5 py-3 bg-slate-900 hover:bg-black text-white text-xs font-black rounded-xl transition-all active:scale-95 shadow-lg shadow-slate-900/10 self-stretch md:self-auto"
+            className="flex items-center justify-center gap-1 px-3 py-1.5 bg-slate-900 hover:bg-black text-white text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all active:scale-95 shadow-sm cursor-pointer"
           >
-            <Plus size={16} />
+            <Plus size={12} />
             Post a Gig
           </button>
         </div>
@@ -349,6 +474,19 @@ export function GigsView() {
               className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col group relative"
               onClick={() => setSelectedGig(gig)}
             >
+              {/* Status Ribbon/Badge */}
+              {gig.status === 'active' && (
+                <div className="absolute top-4 right-4 z-10 bg-amber-500 text-white font-extrabold text-[9px] px-2.5 py-1.5 rounded-lg uppercase tracking-wider shadow-md flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
+                  <span>{gig.workerEmail === (profile?.email || '21lucihanomatthews@gmail.com') ? 'Working' : 'Booked'}</span>
+                </div>
+              )}
+              {gig.status === 'completed' && (
+                <div className="absolute top-4 right-4 z-10 bg-blue-600 text-white font-extrabold text-[9px] px-2.5 py-1.5 rounded-lg uppercase tracking-wider shadow-md">
+                  ✅ Completed
+                </div>
+              )}
+
               {gig.image && (
                 <div className="relative h-44 w-full bg-slate-150 overflow-hidden">
                   <img src={gig.image} alt={gig.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
@@ -376,11 +514,16 @@ export function GigsView() {
                   </p>
                 </div>
 
-                <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-bold">
+                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-bold">
                   <span className="flex items-center gap-1">
                     <MapPin size={12} /> Cape Town Division
                   </span>
-                  <span className="text-slate-800">Employer: {gig.employer}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-700">By: {gig.employer === 'You' ? 'You' : gig.employer.split(' ')[0]}</span>
+                    <span className="text-xs font-black text-emerald-600 flex items-center gap-0.5 group-hover:text-emerald-700 bg-emerald-50 border border-emerald-100/40 px-2.5 py-1 rounded-lg transition-colors">
+                      View <Sparkles size={11} className="text-emerald-500" />
+                    </span>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -435,125 +578,191 @@ export function GigsView() {
                   {selectedGig.employer === 'You' && (
                     <button 
                       onClick={() => handleDeleteGig(selectedGig.id)}
-                      className="w-full flex items-center justify-center gap-2 bg-red-50 text-red-600 font-bold py-4 rounded-2xl hover:bg-red-100 transition-colors border border-red-150"
+                      className="w-full flex items-center justify-center gap-2 bg-red-50 text-red-600 font-bold py-4 rounded-2xl hover:bg-red-100 transition-colors border border-red-150 mb-4"
                     >
                       <Trash2 size={18} />
                       Delete Casual Gig
                     </button>
                   )}
 
-                  {!isApplying ? (
-                    <button 
-                      onClick={() => setIsApplying(true)}
-                      className="w-full bg-slate-900 text-white font-black hover:bg-black py-4 rounded-2xl shadow-lg transition-transform hover:-translate-y-0.5 active:scale-95 text-xs uppercase tracking-widest"
-                    >
-                      Apply of this Task
-                    </button>
-                  ) : (
-                    <div className="space-y-4 pt-4 border-t border-slate-100">
+                  {selectedGig.status === 'completed' ? (
+                    <div className="bg-blue-50 border border-blue-100 text-blue-800 p-5 rounded-3xl text-sm font-bold flex flex-col items-center gap-2 text-center">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-extrabold text-sm">✓</div>
                       <div>
-                        <label className="block text-xs font-black text-slate-400 uppercase mb-2">Detailed pitching letter</label>
-                        <textarea 
-                          className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl min-h-[120px] focus:ring-2 focus:ring-emerald-500 text-sm"
-                          placeholder="Tell the employer why you are verified and fit for this task..."
-                          value={applyText}
-                          onChange={(e) => setApplyText(e.target.value)}
-                        />
+                        <span className="font-extrabold text-sm block mb-1">🎉 Job Certified Complete</span>
+                        <span className="text-xs text-slate-500 font-semibold block">This task has been fully executed, and the helper returned to standard available mode.</span>
                       </div>
-                      
-                      {/* Optional Interactive Video Recording Suite */}
-                      <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100">
-                        <span className="block text-xs font-black text-slate-400 uppercase mb-3">Self Video Pitching Pitch</span>
-                         
-                        {!videoUrl && !isCameraOpen && (
+                    </div>
+                  ) : selectedGig.status === 'active' ? (
+                    selectedGig.workerEmail === (profile?.email || '21lucihanomatthews@gmail.com') ? (
+                      <div className="space-y-4">
+                        <div className="bg-emerald-50 border border-emerald-150 text-emerald-850 p-5 rounded-3xl text-sm font-semibold flex flex-col gap-1.5 shadow-sm">
+                          <span className="flex items-center gap-2 text-slate-900 font-black text-sm">
+                            <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse inline-block" />
+                            You are hired for this gig!
+                          </span>
+                          <span className="text-xs text-slate-600 font-medium leading-relaxed block">
+                            Your helper account has been transitionally set to <strong>WORKING mode (booked today)</strong>.
+                          </span>
+                        </div>
+                        <button 
+                          onClick={handleCompleteGig}
+                          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black py-4 rounded-2xl shadow-lg hover:shadow-emerald-600/10 transition-all active:scale-95 text-xs uppercase tracking-widest cursor-pointer"
+                        >
+                          <CheckCircle size={18} />
+                          Complete Gig & Return to Available
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-100/80 border border-slate-200 text-slate-700 p-5 rounded-3xl text-xs font-bold flex flex-col items-center gap-1.5 text-center">
+                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500">💼</div>
+                        <div>
+                          <span className="font-black text-xs block uppercase">Hired & In Progress</span>
+                          <span className="text-[11px] text-slate-400 font-semibold block mt-0.5">Another verified member is currently completing this task.</span>
+                        </div>
+                      </div>
+                    )
+                  ) : (
+                    <div className="space-y-4">
+                      {selectedGig.employer === 'You' || (profile?.name && selectedGig.employer === profile.name) ? (
+                        <div className="bg-slate-50 border border-slate-200/65 p-5 rounded-3xl text-sm font-semibold text-slate-750 flex flex-col items-center gap-2 text-center shadow-inner">
+                          <span className="text-xl">🚫</span>
+                          <div>
+                            <span className="font-extrabold text-xs block uppercase text-slate-700 tracking-wider">Own Posted Casual Gig</span>
+                            <span className="text-[11px] text-slate-400 font-medium block mt-1 leading-relaxed">
+                              You cannot hire yourself or submit pitch applications to your own listed casual jobs.
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Premium instant acceptance trigger */}
                           <button 
-                            onClick={openCamera}
-                            className="flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-colors text-slate-700 text-xs font-black w-full justify-center shadow-sm"
+                            onClick={handleDirectHire}
+                            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white font-black py-4 rounded-2xl shadow-xl hover:-translate-y-0.5 transition-all duration-300 active:scale-95 text-xs uppercase tracking-widest cursor-pointer"
                           >
-                            <Video size={16} className="text-blue-500" />
-                            Record Live Video explanation
+                            <Sparkles size={16} />
+                            Quick Accept & Start Working
                           </button>
-                        )}
 
-                        {isCameraOpen && (
-                          <div className="relative rounded-2xl overflow-hidden bg-black w-full aspect-video border-2 border-slate-800">
-                            <video 
-                              ref={videoPreviewRef} 
-                              autoPlay 
-                              muted 
-                              playsInline
-                              className="w-full h-full object-cover scale-x-[-1]"
-                            />
-                            
-                            {isRecording && (
-                              <div className="absolute top-4 right-4 flex items-center gap-1.5 bg-red-600 text-white px-3 py-1.5 rounded-full text-xs font-bold animate-pulse">
-                                <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                                Recording
+                          <div className="text-center text-slate-400 font-black text-[9px] uppercase tracking-widest py-1">— OR APPLY WITH LETTER —</div>
+
+                          {!isApplying ? (
+                            <button 
+                              onClick={() => setIsApplying(true)}
+                              className="w-full bg-slate-900 hover:bg-black text-white font-black py-4 rounded-2xl shadow-lg transition-transform hover:-translate-y-0.5 active:scale-95 text-xs uppercase tracking-widest cursor-pointer"
+                            >
+                              Apply of this Task
+                            </button>
+                          ) : (
+                            <div className="space-y-4 pt-4 border-t border-slate-150">
+                              <div>
+                                <label className="block text-xs font-black text-slate-400 uppercase mb-2">Detailed pitching letter</label>
+                                <textarea 
+                                  className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl min-h-[120px] focus:ring-2 focus:ring-emerald-500 text-sm"
+                                  placeholder="Tell the employer why you are verified and fit for this task..."
+                                  value={applyText}
+                                  onChange={(e) => setApplyText(e.target.value)}
+                                />
                               </div>
-                            )}
-
-                            <div className="absolute bottom-4 left-0 right-0 gap-3 flex justify-center items-center">
-                              <button 
-                                onClick={closeCamera}
-                                className="w-10 h-10 bg-white/30 backdrop-blur-md text-white rounded-full flex items-center justify-center hover:bg-white/40 transition-colors"
-                              >
-                                <X size={18} />
-                              </button>
                               
-                              {!isRecording ? (
-                                <button 
-                                  onClick={startRecording}
-                                  className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center hover:bg-red-700 transition-all shadow-lg outline outline-4 outline-offset-2 outline-red-500/20"
-                                >
-                                  <Video size={22} className="text-white" />
-                                </button>
-                              ) : (
-                                <button 
-                                  onClick={stopRecording}
-                                  className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center hover:bg-red-700 transition-all animate-pulse"
-                                >
-                                  <StopCircle size={24} className="text-white" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        )}
+                              {/* Optional Interactive Video Recording Suite */}
+                              <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100">
+                                <span className="block text-xs font-black text-slate-400 uppercase mb-3">Self Video Pitching Pitch</span>
+                                 
+                                {!videoUrl && !isCameraOpen && (
+                                  <button 
+                                    onClick={openCamera}
+                                    className="flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-colors text-slate-700 text-xs font-black w-full justify-center shadow-sm"
+                                  >
+                                    <Video size={16} className="text-blue-500" />
+                                    Record Live Video explanation
+                                  </button>
+                                )}
 
-                        {videoUrl && (
-                          <div className="space-y-3">
-                            <video 
-                              src={videoUrl} 
-                              controls 
-                              className="w-full rounded-2xl aspect-video bg-black"
-                            />
-                            <div className="flex gap-2">
+                                {isCameraOpen && (
+                                  <div className="relative rounded-2xl overflow-hidden bg-black w-full aspect-video border-2 border-slate-800">
+                                    <video 
+                                      ref={videoPreviewRef} 
+                                      autoPlay 
+                                      muted 
+                                      playsInline
+                                      className="w-full h-full object-cover scale-x-[-1]"
+                                    />
+                                    
+                                    {isRecording && (
+                                      <div className="absolute top-4 right-4 flex items-center gap-1.5 bg-red-600 text-white px-3 py-1.5 rounded-full text-xs font-bold animate-pulse">
+                                        <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                                        Recording
+                                      </div>
+                                    )}
+
+                                    <div className="absolute bottom-4 left-0 right-0 gap-3 flex justify-center items-center">
+                                      <button 
+                                        onClick={closeCamera}
+                                        className="w-10 h-10 bg-white/30 backdrop-blur-md text-white rounded-full flex items-center justify-center hover:bg-white/40 transition-colors"
+                                      >
+                                        <X size={18} />
+                                      </button>
+                                      
+                                      {!isRecording ? (
+                                        <button 
+                                          onClick={startRecording}
+                                          className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center hover:bg-red-700 transition-all shadow-lg outline outline-4 outline-offset-2 outline-red-500/20"
+                                        >
+                                          <Video size={22} className="text-white" />
+                                        </button>
+                                      ) : (
+                                        <button 
+                                          onClick={stopRecording}
+                                          className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center hover:bg-red-700 transition-all animate-pulse"
+                                        >
+                                          <StopCircle size={24} className="text-white" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {videoUrl && (
+                                  <div className="space-y-3">
+                                    <video 
+                                      src={videoUrl} 
+                                      controls 
+                                      className="w-full rounded-2xl aspect-video bg-black"
+                                    />
+                                    <div className="flex gap-2">
+                                      <button 
+                                        onClick={openCamera}
+                                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 border border-slate-250 bg-white rounded-xl text-xs font-bold text-slate-700"
+                                      >
+                                        <RefreshCw size={14} />
+                                        Retake
+                                      </button>
+                                      <button 
+                                        onClick={discardVideo}
+                                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 border border-red-200 bg-white rounded-xl text-xs font-bold text-red-600"
+                                      >
+                                        <Trash2 size={14} />
+                                        Delete
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
                               <button 
-                                onClick={openCamera}
-                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 border border-slate-250 bg-white rounded-xl text-xs font-bold text-slate-700"
+                                onClick={handleSendApplication}
+                                disabled={!applyText.trim() && !videoUrl}
+                                className="w-full flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider py-4 rounded-2xl shadow-lg shadow-emerald-600/10 disabled:opacity-50 disabled:cursor-not-allowed mt-4 cursor-pointer"
                               >
-                                <RefreshCw size={14} />
-                                Retake
-                              </button>
-                              <button 
-                                onClick={discardVideo}
-                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 border border-red-200 bg-white rounded-xl text-xs font-bold text-red-600"
-                              >
-                                <Trash2 size={14} />
-                                Delete
+                                <Send size={16} />
+                                Submit Application Letter
                               </button>
                             </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <button 
-                        onClick={handleSendApplication}
-                        disabled={!applyText.trim() && !videoUrl}
-                        className="w-full flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider py-4 rounded-2xl shadow-lg shadow-emerald-600/10 disabled:opacity-50 disabled:cursor-not-allowed mt-4"
-                      >
-                        <Send size={16} />
-                        Submit Application Letter
-                      </button>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

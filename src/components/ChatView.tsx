@@ -1,32 +1,63 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, User, Users, X, Phone, Check, ArrowLeft, Smile, CheckCheck, Plus, Mic, Trash2, ShieldAlert, Sparkles, CheckCircle, Navigation } from 'lucide-react';
-import { ChatMessage } from '@/src/types';
+import { ChatMessage, UserProfile } from '../types';
+import LiveStorageService from '../lib/supabase';
 
 const EMOJIS = ['👍', '❤️', '😂', '🔥', '🎉', '😢', '😍', '🤔', '🙏', '💯'];
 
-const MOCK_CONTACTS = [
-  { id: 100, name: 'Cwallet Assistant', phone: 'AI Co-Pilot', isUsingApp: true, avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&q=80', isAI: true },
-  { id: 1, name: 'Alex Johnson', phone: '+27 (0) 72 123 4567', isUsingApp: true, avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100' },
-  { id: 2, name: 'Maria Garcia', phone: '+27 (0) 73 987 6543', isUsingApp: true, avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100' },
-  { id: 3, name: 'James Smith', phone: '+27 (0) 81 456 7890', isUsingApp: true, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100' },
-  { id: 4, name: 'Linda Martinez', phone: '+27 (0) 71 234 5678', isUsingApp: false, avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100' },
-];
+interface Contact {
+  id: string | number;
+  name: string;
+  phone: string;
+  isUsingApp: boolean;
+  avatar: string;
+  isAI?: boolean;
+}
 
 interface ChatViewProps {
   isNavbarVisible: boolean;
   setIsNavbarVisible: (visible: boolean) => void;
+  profile?: UserProfile;
 }
 
-export function ChatView({ isNavbarVisible, setIsNavbarVisible }: ChatViewProps) {
-  const [activeContactId, setActiveContactId] = useState<number>(100); // Default to Gemini Assistant
-  const [chatHistories, setChatHistories] = useState<Record<number, ChatMessage[]>>({
-    100: [
-      { role: 'model', content: 'Hello! I am your AI Cwallet Assistant. How can I help you today? I can guide you through securing top-ups, finding trust-worthy helpers, preparing your Matric resume certifications, or managing your digital ledger profits.', timestamp: Date.now() }
+export function ChatView({ isNavbarVisible, setIsNavbarVisible, profile }: ChatViewProps) {
+  const [activeContactId, setActiveContactId] = useState<string | number>('100'); // Default to Gemini Assistant
+  const [contacts, setContacts] = useState<Contact[]>([
+    { id: '100', name: 'TimeGiG Assistant', phone: 'AI Co-Pilot', isUsingApp: true, avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&q=80', isAI: true }
+  ]);
+
+  const [chatHistories, setChatHistories] = useState<Record<string | number, ChatMessage[]>>({
+    '100': [
+      { role: 'model', content: 'Hello! I am your AI TimeGiG Assistant. How can I help you today? I can guide you through securing top-ups, finding trust-worthy helpers, preparing your Matric resume certifications, or managing your digital ledger profits.', timestamp: Date.now() }
     ]
   });
+
+  useEffect(() => {
+    async function fetchProfiles() {
+      const profiles = await LiveStorageService.getAllProfiles();
+      const defaultContacts: Contact[] = [
+        { id: '100', name: 'TimeGiG Assistant', phone: 'AI Co-Pilot', isUsingApp: true, avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&q=80', isAI: true }
+      ];
+
+      // Exclude current logged in user
+      const filteredProfiles = profiles.filter(p => !profile || p.email !== profile.email);
+
+      const dynamicContacts: Contact[] = filteredProfiles.map((p) => ({
+        id: p.email,
+        name: `${p.name} ${p.surname || ''}`.trim(),
+        phone: p.contactInfo || p.email,
+        isUsingApp: true,
+        avatar: p.facePictureUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'
+      }));
+
+      setContacts([...defaultContacts, ...dynamicContacts]);
+    }
+    fetchProfiles();
+  }, [profile]);
+
   const [input, setInput] = useState('');
   const [showContacts, setShowContacts] = useState(false);
-  const [invited, setInvited] = useState<Record<number, boolean>>({});
+  const [invited, setInvited] = useState<Record<string | number, boolean>>({});
   const [showEmojis, setShowEmojis] = useState(false);
   const [attachment, setAttachment] = useState<{ url: string, type: 'image' | 'video' | 'audio' } | null>(null);
   const [fullScreenMedia, setFullScreenMedia] = useState<{ url: string, type: 'image' | 'video' } | null>(null);
@@ -42,7 +73,7 @@ export function ChatView({ isNavbarVisible, setIsNavbarVisible }: ChatViewProps)
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const activeMessages = chatHistories[activeContactId] || [];
-  const activeContact = MOCK_CONTACTS.find(c => c.id === activeContactId);
+  const activeContact = contacts.find(c => String(c.id) === String(activeContactId));
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -209,7 +240,7 @@ export function ChatView({ isNavbarVisible, setIsNavbarVisible }: ChatViewProps)
     }
   };
 
-  const handleContactClick = (contact: typeof MOCK_CONTACTS[0]) => {
+  const handleContactClick = (contact: Contact) => {
     if (contact.isUsingApp) {
       setActiveContactId(contact.id);
       setShowContacts(false);
@@ -223,7 +254,7 @@ export function ChatView({ isNavbarVisible, setIsNavbarVisible }: ChatViewProps)
     setShowEmojis(false);
   };
 
-  const appUsers = MOCK_CONTACTS.filter(c => c.isUsingApp);
+  const appUsers = contacts.filter(c => c.isUsingApp);
 
   return (
     <div className="flex flex-col h-full bg-slate-50 relative overflow-hidden">
@@ -312,7 +343,7 @@ export function ChatView({ isNavbarVisible, setIsNavbarVisible }: ChatViewProps)
           <div className="flex justify-start animate-pulse">
             <div className="bg-white text-slate-800 p-3.5 rounded-2xl border border-slate-150 rounded-bl-none flex items-center gap-3">
               <img src={activeContact?.avatar} alt="" className="w-6 h-6 rounded-lg object-cover text-blue-500 animate-spin" />
-              <span className="text-xs font-bold text-slate-500">Cwallet Artificial Intelligence typing...</span>
+              <span className="text-xs font-bold text-slate-500">TimeGiG Artificial Intelligence typing...</span>
             </div>
           </div>
         )}
@@ -402,7 +433,6 @@ export function ChatView({ isNavbarVisible, setIsNavbarVisible }: ChatViewProps)
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                onFocus={() => setIsNavbarVisible(false)}
                 placeholder={`Type message or task details...`}
                 className="flex-1 bg-transparent border-none focus:outline-none py-1.5 text-xs font-semibold text-slate-800"
               />
@@ -465,12 +495,12 @@ export function ChatView({ isNavbarVisible, setIsNavbarVisible }: ChatViewProps)
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
-              {MOCK_CONTACTS.map(contact => (
+              {contacts.map(contact => (
                 <div 
                   key={contact.id} 
                   onClick={() => handleContactClick(contact)}
                   className={`bg-white p-3 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer ${
-                    activeContactId === contact.id ? 'border-blue-500 ring-1 ring-blue-500 shadow-sm' : 'border-slate-100 hover:border-slate-250'
+                    String(activeContactId) === String(contact.id) ? 'border-blue-500 ring-1 ring-blue-500 shadow-sm' : 'border-slate-100 hover:border-slate-250'
                   }`}
                 >
                   <img src={contact.avatar} alt={contact.name} className="w-10 h-10 rounded-xl object-cover border border-slate-150" />

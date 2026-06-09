@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { User, Phone, Mail, Search, Plus, Star, MapPin, Briefcase, Award, CheckCircle2, Navigation, Heart, Filter, ArrowUpRight, X, Upload, Sparkles, Camera, Trash2 } from 'lucide-react';
 import { Helper, UserProfile } from '@/src/types';
 import { FullScreenModal } from './FullScreenModal';
+import LiveStorageService from '../lib/supabase';
 
 interface PremiumHelper extends Helper {
   rating: string;
@@ -14,68 +15,7 @@ interface PremiumHelper extends Helper {
   verified: boolean;
 }
 
-const PREMIUM_HELPERS: PremiumHelper[] = [
-  { 
-    id: '1', 
-    name: 'Alice Smith', 
-    profilePic: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300&auto=format&fit=crop&q=80', 
-    bio: 'Professional horticulturalist and landscape architect. I bring years of specialized urban garden design, weeding, organic composting, and premium lawn design directly to your home.', 
-    contact: 'alice.gardens@gmail.com', 
-    role: 'Gardener',
-    rating: '4.9',
-    location: 'Rondebosch, Cape Town',
-    completedTasks: 48,
-    rate: 'R65/hr',
-    availableNow: true,
-    specialty: 'Botanic Care & Design',
-    verified: true
-  },
-  { 
-    id: '2', 
-    name: 'Bob Jones', 
-    profilePic: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80', 
-    bio: 'Avid animal lover and certified pet behaviorist. Offering dedicated weekend dog sitting, professional obedience exercises, dietary charting, and trustworthy overnight residential security.', 
-    contact: 'bob.sitting@gmail.com', 
-    role: 'Pet Sitter',
-    rating: '4.8',
-    location: 'Claremont, Cape Town',
-    completedTasks: 37,
-    rate: 'R80/hr',
-    availableNow: false,
-    specialty: 'Dog Training & Sitting',
-    verified: true
-  },
-  { 
-    id: '3', 
-    name: 'Clara Davis', 
-    profilePic: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80', 
-    bio: 'High honors Stellenbosch University engineering senior tutoring High School Algebra, Geometry, Mechanics, and Matric Physical Sciences. Patient tutoring style tailored for top grades.', 
-    contact: 'clara.tutor@stb.ac.za', 
-    role: 'Math Tutor',
-    rating: '5.0',
-    location: 'Stellenbosch',
-    completedTasks: 62,
-    rate: 'R120/hr',
-    availableNow: true,
-    specialty: 'STEM Exam Preparation',
-    verified: true
-  },
-  { 
-    id: '4', 
-    name: 'David Evans', 
-    profilePic: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80', 
-    bio: 'Hands-on domestic technician with verified credentials. Expert in residential household repair, simple circuit fittings, lighting setups, furniture assembly, and basic plumbing diagnostic tasks.', 
-    contact: 'david.fix@outlook.com', 
-    role: 'Handyman',
-    rating: '4.7',
-    location: 'Green Point, Cape Town',
-    completedTasks: 29,
-    rate: 'R95/hr',
-    availableNow: true,
-    specialty: 'Home Diagnostics & Assembly',
-    verified: false
-  }
-];
+const PREMIUM_HELPERS: PremiumHelper[] = [];
 
 const CATEGORIES = ['All', 'Gardener', 'Pet Sitter', 'Math Tutor', 'Handyman'];
 
@@ -89,18 +29,16 @@ export function HelperView({ profile }: HelperViewProps) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   
-  // Helpers state initialized from localStorage if exists, else PREMIUM_HELPERS
-  const [helpers, setHelpers] = useState<PremiumHelper[]>(() => {
-    const saved = localStorage.getItem('gighelp_helpers');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Error loading helpers', e);
-      }
+  // Helpers state
+  const [helpers, setHelpers] = useState<PremiumHelper[]>([]);
+
+  useEffect(() => {
+    async function loadHelpers() {
+      const liveHelpers = await LiveStorageService.getHelpers([]);
+      setHelpers(liveHelpers);
     }
-    return PREMIUM_HELPERS;
-  });
+    loadHelpers();
+  }, []);
 
   // Media URLs / Portfolio files dictionary state
   const [mediaUrls, setMediaUrls] = useState<Record<string, {url: string, type: string}[]>>(() => {
@@ -213,6 +151,9 @@ export function HelperView({ profile }: HelperViewProps) {
       setHelpers(prev => [newHelper, ...prev]);
     }
 
+    // Sync helper registration to live database
+    LiveStorageService.saveHelper(newHelper);
+
     // Save temporary images to our permanent media dictionary
     const mediaPayload = tempImages.map(url => ({
       url,
@@ -234,6 +175,8 @@ export function HelperView({ profile }: HelperViewProps) {
         delete copy[myHelperProfile.id];
         return copy;
       });
+      // Sync delete helper from live database
+      LiveStorageService.deleteHelper(myHelperProfile.id);
     }
     setIsBecomeHelperOpen(false);
   };
@@ -254,37 +197,37 @@ export function HelperView({ profile }: HelperViewProps) {
   return (
     <div className="flex flex-col h-full bg-slate-50/50 pb-24">
       {/* Header Panel */}
-      <div className="bg-white px-6 pt-6 pb-4 border-b border-slate-100 shadow-sm sticky top-0 z-30 backdrop-blur-md bg-white/95">
-        <div className="flex justify-between items-center mb-4">
+      <div className="bg-white px-5 py-3 border-b border-slate-100 shadow-sm sticky top-0 z-30 backdrop-blur-md bg-white/95">
+        <div className="flex justify-between items-center mb-2.5">
           <div>
-            <span className="text-xs font-black tracking-widest text-blue-600 uppercase">GIGHELP TEAM</span>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight mt-0.5">
+            <span className="text-[10px] font-extrabold tracking-wider text-blue-600/85 uppercase">GIGHELP TEAM</span>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">
               Available Helpers
             </h1>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={openBecomeHelperModal}
-              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 shadow-md ${
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 shadow-sm cursor-pointer ${
                 isAlreadyHelper 
-                  ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-amber-500/20' 
-                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20'
+                  ? 'bg-amber-500 text-white hover:bg-amber-600' 
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
               }`}
             >
               {isAlreadyHelper ? (
                 <>
-                  <Sparkles size={13} strokeWidth={2.5} />
-                  Manage Helper Profile
+                  <Sparkles size={11} strokeWidth={2.5} />
+                  Manage Profile
                 </>
               ) : (
                 <>
-                  <Plus size={13} strokeWidth={2.5} />
-                  Become a Helper
+                  <Plus size={11} strokeWidth={2.5} />
+                  Become Helper
                 </>
               )}
             </button>
-            <div className="h-2.5 w-2.5 bg-emerald-500 rounded-full animate-ping shadow-lg shadow-emerald-400 flex-shrink-0" title="System Live" />
+            <div className="h-2 w-2 bg-emerald-500 rounded-full animate-ping flex-shrink-0" title="System Live" />
           </div>
         </div>
 
@@ -384,13 +327,18 @@ export function HelperView({ profile }: HelperViewProps) {
                   </p>
                 </div>
 
-                <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-slate-700 text-xs">
-                  <div className="flex items-center gap-1 text-slate-400 font-medium">
-                    <MapPin size={14} />
-                    <span className="truncate max-w-[120px]">{helper.location.split(',')[0]}</span>
+                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-slate-700 text-xs">
+                  <div className="flex items-center gap-1 text-slate-400 font-medium flex-shrink-0">
+                    <MapPin size={13} />
+                    <span className="truncate max-w-[90px]">{helper.location.split(',')[0]}</span>
                   </div>
-                  <div className="font-black text-slate-900 text-sm bg-slate-100 px-3 py-1 rounded-xl">
-                    {helper.rate}
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-800 text-xs bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-lg">
+                      {helper.rate}
+                    </span>
+                    <span className="text-xs font-black text-blue-600 flex items-center gap-0.5 group-hover:text-blue-700 bg-blue-50/70 border border-blue-100/40 px-2.5 py-1 rounded-lg transition-colors">
+                      Hire <ArrowUpRight size={12} className="text-blue-500" />
+                    </span>
                   </div>
                 </div>
               </div>
@@ -537,12 +485,18 @@ export function HelperView({ profile }: HelperViewProps) {
                 </div>
 
                 <div className="pt-2">
-                  <button
-                    onClick={() => alert(`Interview Request sent directly to ${selectedHelper.name}! Please monitor Chats view.`)}
-                    className="w-full py-3 bg-slate-900 hover:bg-black text-white font-black rounded-2xl text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                  >
-                    Send Hire Request <ArrowUpRight size={14} />
-                  </button>
+                  {selectedHelper.contact === (profile?.email || '21lucihanomatthews@gmail.com') ? (
+                    <div className="w-full py-3 bg-slate-150 text-slate-500 font-extrabold rounded-2xl text-center text-[10px] uppercase tracking-wider border border-slate-200">
+                      🚫 Your Own Helper Profile
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => alert(`Interview Request sent directly to ${selectedHelper.name}! Please monitor Chats view.`)}
+                      className="w-full py-3 bg-slate-900 hover:bg-black text-white font-black rounded-2xl text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      Send Hire Request <ArrowUpRight size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -562,7 +516,7 @@ export function HelperView({ profile }: HelperViewProps) {
                 {isAlreadyHelper ? 'Manage Helper Profile' : 'Become a Helper'}
               </h2>
               <p className="text-xs text-slate-500 mt-1 font-medium">
-                Auto-binding is active. Your basic information is pulled from Cwallet. Just add attraction details!
+                Auto-binding is active. Your basic information is pulled from TimeGiG. Just add attraction details!
               </p>
             </div>
             

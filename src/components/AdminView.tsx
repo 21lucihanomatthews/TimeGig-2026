@@ -1,11 +1,85 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Check, X, Eye, ShieldAlert, TrendingUp, AlertCircle, FileCheck, CheckCircle2 } from 'lucide-react';
+import { Check, X, Eye, ShieldAlert, TrendingUp, AlertCircle, FileCheck, CheckCircle2, Megaphone, Plus, BellRing } from 'lucide-react';
 import { FullScreenModal } from './FullScreenModal';
-import { Payment } from '@/src/types';
+import { Payment, Gig } from '@/src/types';
 
-export function AdminView({ payments, setPayments, setBalance, profit, setProfit }: { payments: Payment[], setPayments: React.Dispatch<React.SetStateAction<Payment[]>>, setBalance: React.Dispatch<React.SetStateAction<number>>, profit: number, setProfit: React.Dispatch<React.SetStateAction<number>> }) {
+export function AdminView({ 
+  payments, 
+  setPayments, 
+  setBalance, 
+  profit, 
+  setProfit,
+  gigs,
+  setGigs,
+  addNotification
+}: { 
+  payments: Payment[], 
+  setPayments: React.Dispatch<React.SetStateAction<Payment[]>>, 
+  setBalance: React.Dispatch<React.SetStateAction<number>>, 
+  profit: number, 
+  setProfit: React.Dispatch<React.SetStateAction<number>>,
+  gigs: Gig[],
+  setGigs: React.Dispatch<React.SetStateAction<Gig[]>>,
+  addNotification: (title: string, message: string, type: 'gig' | 'promotion' | 'system') => void
+}) {
   const [selectedProof, setSelectedProof] = useState<string | null>(null);
+
+  // Broadcaster State
+  const [promoTitle, setPromoTitle] = useState('');
+  const [promoMessage, setPromoMessage] = useState('');
+  
+  const [gigTitle, setGigTitle] = useState('');
+  const [gigCategory, setGigCategory] = useState('Gardener');
+  const [gigPrice, setGigPrice] = useState('');
+  const [gigDesc, setGigDesc] = useState('');
+
+  const handleBroadcastPromo = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!promoTitle.trim() || !promoMessage.trim()) return;
+
+    // Trigger Notification
+    addNotification(promoTitle, promoMessage, 'promotion');
+
+    // Clear state
+    setPromoTitle('');
+    setPromoMessage('');
+    alert('Promo alert broadcasted successfully! Soft bell sound triggered.');
+  };
+
+  const handleSpawnGigAlert = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!gigTitle.trim() || !gigPrice.trim() || !gigDesc.trim()) return;
+
+    const newGigId = `admin-spawned-${Date.now()}`;
+    const newGig: Gig = {
+      id: newGigId,
+      title: gigTitle,
+      description: gigDesc,
+      price: gigPrice,
+      category: gigCategory,
+      status: 'available',
+      employer: 'TimeGiG Representative',
+      image: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=500',
+      startDate: 'Immediately'
+    };
+
+    // Add to shared gigs state
+    setGigs(prev => [newGig, ...prev]);
+
+    // Dispatch warning trigger
+    addNotification(
+      'New Task Dispatch Alert',
+      `🚨 [Hiring Alert] New high-paying ${gigCategory} job listed: "${gigTitle}" for R ${gigPrice}! Click GIGS in the menu to bid.`,
+      'gig'
+    );
+
+    // Clear
+    setGigTitle('');
+    setGigPrice('');
+    setGigDesc('');
+    alert('Task successfully spawned and broadcast to TimeGiG network!');
+  };
 
   const approvePayment = (payment: Payment) => {
     const coins = parseInt(payment.option.replace('c', ''));
@@ -17,6 +91,7 @@ export function AdminView({ payments, setPayments, setBalance, profit, setProfit
   const rejectPayment = (payment: Payment) => {
     setPayments(prev => prev.filter(item => item.id !== payment.id));
   };
+
 
   return (
     <div className="p-6 pb-24 h-full overflow-y-auto max-w-4xl mx-auto">
@@ -101,6 +176,125 @@ export function AdminView({ payments, setPayments, setBalance, profit, setProfit
             ))}
           </div>
         )}
+      </div>
+
+      {/* Broadcast Tools Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        {/* Promotion Broadcast Panel */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <Megaphone size={16} />
+              </div>
+              <h3 className="font-black text-sm text-slate-900 uppercase tracking-widest mt-0.5">Broadcast System Promotion</h3>
+            </div>
+            
+            <form onSubmit={handleBroadcastPromo} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase">Promo Title</label>
+                <input 
+                  type="text" 
+                  value={promoTitle}
+                  onChange={e => setPromoTitle(e.target.value)}
+                  placeholder="e.g. June Winter Bonus Offer" 
+                  className="w-full text-xs p-3 bg-slate-50 border border-slate-200/60 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"
+                  required
+                />
+              </div>
+              
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase">Alert message</label>
+                <textarea 
+                  value={promoMessage}
+                  onChange={e => setPromoMessage(e.target.value)}
+                  placeholder="e.g. Deposit 100c right now and get +25c loyalty coin credit into your verified TimeGiG card instantly!" 
+                  className="w-full text-xs p-3 bg-slate-50 border border-slate-200/60 rounded-xl h-24 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"
+                  required
+                />
+              </div>
+              
+              <button 
+                type="submit" 
+                className="w-full py-3 bg-indigo-600 text-white font-black text-xs uppercase tracking-wider rounded-xl hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-150 flex items-center justify-center gap-1.5"
+              >
+                <BellRing size={14} className="animate-bounce" /> Broadcast Memo & Chime
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Gig spawner panel */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <Plus size={16} />
+              </div>
+              <h3 className="font-black text-sm text-slate-900 uppercase tracking-widest mt-0.5">Spawn Network Gig Alert</h3>
+            </div>
+            
+            <form onSubmit={handleSpawnGigAlert} className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1 col-span-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase">Task Title</label>
+                  <input 
+                    type="text" 
+                    value={gigTitle}
+                    onChange={e => setGigTitle(e.target.value)}
+                    placeholder="e.g. Urgent Pool Clean Helper" 
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200/60 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase">Target Category</label>
+                  <select 
+                    value={gigCategory}
+                    onChange={e => setGigCategory(e.target.value)}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200/60 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
+                  >
+                    <option value="Gardener">Gardener</option>
+                    <option value="Pet Sitter">Pet Sitter</option>
+                    <option value="Math Tutor">Math Tutor</option>
+                    <option value="Handyman">Handyman</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase">Budget Offered Rands</label>
+                  <input 
+                    type="text" 
+                    value={gigPrice}
+                    onChange={e => setGigPrice(e.target.value)}
+                    placeholder="e.g. 550" 
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200/60 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase">Alert description</label>
+                <textarea 
+                  value={gigDesc}
+                  onChange={e => setGigDesc(e.target.value)}
+                  placeholder="Explain requirements explicitly. This will be posted to the live network catalog..." 
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200/60 rounded-xl h-16 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
+                  required
+                />
+              </div>
+              
+              <button 
+                type="submit" 
+                className="w-full py-3 bg-emerald-600 text-white font-black text-xs uppercase tracking-wider rounded-xl hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-150 flex items-center justify-center gap-1.5"
+              >
+                <Plus size={14} /> Spawn Gig & Broadcast
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
       
       {/* Proof of Payment Fullscreen Modal content */}

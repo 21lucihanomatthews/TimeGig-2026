@@ -56,9 +56,9 @@ app.post("/api/helper", async (req, res) => {
       fallbackText += "⚠️ **AI Assistant: Auxiliary Offline Mode**\n\nI couldn't contact my remote AI server (possibly due to connection limits or configuration). No worries! I have fetched specialized guide details for you based on your prompt:\n\n";
     }
 
-    if (msgLower.includes("wallet") || msgLower.includes("pay") || msgLower.includes("withdraw") || msgLower.includes("deposit") || msgLower.includes("money") || msgLower.includes("balance") || msgLower.includes("cwallet")) {
+    if (msgLower.includes("wallet") || msgLower.includes("pay") || msgLower.includes("withdraw") || msgLower.includes("deposit") || msgLower.includes("money") || msgLower.includes("balance") || msgLower.includes("timegig")) {
       fallbackText += "### 💳 Digital Wallet & Payments\n" +
-        "- **View Balance:** Click the **Cwallet** tab in the bottom menu to see your current funds, active profits, and transaction history.\n" +
+        "- **View Balance:** Click the **Wallet** tab in the bottom menu to see your current funds, active profits, and transaction history.\n" +
         "- **Deposit/Withdraw:** You can top up your balance with standard presets or withdraw securely to any linked bank option.\n" +
         "- **Safety Features:** Transacted money is handled by our escrow contract. Funds are only transferred once you mark a gig as completed.";
     } else if (msgLower.includes("become") || msgLower.includes("helper") || msgLower.includes("profile") || msgLower.includes("list") || msgLower.includes("image") || msgLower.includes("portfolio")) {
@@ -75,7 +75,7 @@ app.post("/api/helper", async (req, res) => {
         `- Regarding: "${message}"\n` +
         "- **Gigs Board:** Publish micro-jobs or manage open tasks.\n" +
         "- **Helper Directory:** Apply to become an interactive assistant instantly with image uploads, or hire top talent.\n" +
-        "- **Cwallet Ledger:** Full accounting and financial monitoring panel.";
+        "- **TimeGiG Ledger:** Full accounting and financial monitoring panel.";
     }
 
     fallbackText += "\n\n*Please try sending your message again in a short moment once the high demand settles down!*";
